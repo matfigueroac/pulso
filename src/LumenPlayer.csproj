@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+    <Version>0.2.0</Version>
+    <AssemblyTitle>Lumen Player</AssemblyTitle>
+    <Product>Lumen Player</Product>
+    <ApplicationIcon>Assets\Lumen.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LibVLCSharp.WPF" Version="3.10.2" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
+    <Resource Include="Assets\Lumen.ico;Assets\Fonts\*.otf" />
+    <None Include="../README.md" CopyToPublishDirectory="PreserveNewest" TargetPath="README.md" />
+    <None Update="Assets\Fonts\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" TargetPath="Licenses\Inter-OFL.txt" />
+  </ItemGroup>
+</Project>

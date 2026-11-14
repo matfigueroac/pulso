@@ -1,0 +1,7 @@
+/.tools/
+/work/
+/dist/
+**/bin/
+**/obj/
+.vs/
+*.user
