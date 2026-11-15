@@ -9,6 +9,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Controls.Primitives;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
@@ -27,12 +29,14 @@ public partial class MainWindow : Window
     private WindowChrome? _windowedChrome;
     private System.Drawing.Point _lastPointer;
     private long _lastFullscreenInput;
+    private bool _transportHidden;
     private ContextMenu? _openMenu;
 
     public MainWindow()
     {
         InitializeComponent();
         QueueList.ItemsSource = _queue;
+        _effectTimer.Tick += OnEffectTick;
         _clock.Tick += (_, _) =>
         {
             RefreshPlayback();
@@ -52,6 +56,8 @@ public partial class MainWindow : Window
         if (!InitializePlayback())
             return;
 
+        SetAudioProfile(Math.Clamp(preferences.AudioPreset, 0, AudioPresets.Length - 1),
+            Array.IndexOf(BoostSteps, preferences.AudioBoost) >= 0 ? preferences.AudioBoost : 0, announce: false);
         _ready = true;
         _clock.Start();
         var arguments = Environment.GetCommandLineArgs().Skip(1).ToArray();
@@ -62,8 +68,11 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _clock.Stop();
+        _effectTimer.Stop();
+        _subtitleGeneration?.Cancel();
         if (_ready)
-            SavePreferences(new((int)Math.Round(VolumeSlider.Value), _muted));
+            SavePreferences(new((int)Math.Round(VolumeSlider.Value), _muted, _audioPreset, _audioBoost));
+        _ready = false;
         DisposePlayback();
     }
 
@@ -210,14 +219,47 @@ public partial class MainWindow : Window
         }
 
         if (Environment.TickCount64 - _lastFullscreenInput >= 2_500)
-            Transport.Visibility = Visibility.Collapsed;
+            SetTransportHidden(true);
     }
 
     private void RevealFullscreenControls()
     {
         _lastPointer = Forms.Control.MousePosition;
         _lastFullscreenInput = Environment.TickCount64;
-        Transport.Visibility = Visibility.Visible;
+        SetTransportHidden(false);
+    }
+
+    private void SetTransportHidden(bool hidden)
+    {
+        if (_transportHidden == hidden)
+            return;
+
+        _transportHidden = hidden;
+        Transport.IsHitTestVisible = !hidden;
+        var from = Transport.Opacity;
+        var to = hidden ? 0d : 1d;
+        Transport.BeginAnimation(OpacityProperty, null);
+        Transport.Opacity = to;
+        if (!hidden)
+            Transport.Visibility = Visibility.Visible;
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            Transport.Visibility = hidden ? Visibility.Collapsed : Visibility.Visible;
+            return;
+        }
+
+        var fade = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(160))
+        {
+            FillBehavior = FillBehavior.Stop,
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        if (hidden)
+            fade.Completed += (_, _) =>
+            {
+                if (_transportHidden)
+                    Transport.Visibility = Visibility.Collapsed;
+            };
+        Transport.BeginAnimation(OpacityProperty, fade);
     }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
@@ -226,7 +268,10 @@ public partial class MainWindow : Window
             RevealFullscreenControls();
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         var modifiers = Keyboard.Modifiers;
-        if (modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && key == Key.O)
+        if ((modifiers == ModifierKeys.Shift && key == Key.F10)
+            || (modifiers == ModifierKeys.None && key == Key.Apps))
+            ShowViewportMenu(PlacementMode.Center);
+        else if (modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && key == Key.O)
             OpenFiles(play: false);
         else if (modifiers == ModifierKeys.Control)
         {
@@ -291,7 +336,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private sealed record PlayerPreferences(int Volume, bool Muted);
+    private sealed record PlayerPreferences(int Volume, bool Muted, int AudioPreset = 0, int AudioBoost = 0);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

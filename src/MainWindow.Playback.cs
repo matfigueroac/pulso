@@ -305,6 +305,8 @@ public partial class MainWindow
     private void SetVideoVisible(bool visible)
     {
         _videoVisible = visible;
+        if (!visible)
+            UpdateAspectLabel();
         Video.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         Placeholder.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
     }

@@ -82,38 +82,23 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Border x:Name="Viewport" CornerRadius="12" Background="#090B10" BorderBrush="{StaticResource StrokeBrush}"
-                    BorderThickness="1" ClipToBounds="True" MouseLeftButtonDown="OnViewportClick">
+                    BorderThickness="1" ClipToBounds="True" MouseLeftButtonDown="OnViewportClick"
+                    MouseRightButtonUp="OnViewportRightClick">
                 <Grid>
                     <vlc:VideoView x:Name="Video" Visibility="Collapsed" Focusable="False" AllowDrop="True"
                                    DragOver="OnDragOver" Drop="OnDrop">
                         <Border Background="Transparent" AllowDrop="True" MouseLeftButtonDown="OnViewportClick"
+                                MouseRightButtonUp="OnViewportRightClick"
                                 DragOver="OnDragOver" Drop="OnDrop" PreviewKeyDown="OnKeyDown"/>
                     </vlc:VideoView>
                     <Grid x:Name="Placeholder" ClipToBounds="True">
                         <Grid.Background>
                             <RadialGradientBrush Center="0.5,0.41" GradientOrigin="0.5,0.41" RadiusX="0.70" RadiusY="0.82">
-                                <GradientStop Color="#252C3B" Offset="0"/>
-                                <GradientStop Color="#131923" Offset="0.52"/>
+                                <GradientStop Color="#202735" Offset="0"/>
+                                <GradientStop Color="#121720" Offset="0.55"/>
                                 <GradientStop Color="#090B10" Offset="1"/>
                             </RadialGradientBrush>
                         </Grid.Background>
-                        <Rectangle IsHitTestVisible="False" Opacity="0.25">
-                            <Rectangle.Fill>
-                                <DrawingBrush TileMode="Tile" Viewport="0,0,22,22" ViewportUnits="Absolute"
-                                              Viewbox="0,0,22,22" ViewboxUnits="Absolute">
-                                    <DrawingBrush.Drawing>
-                                        <DrawingGroup>
-                                            <GeometryDrawing Brush="Transparent" Geometry="M 0,0 H 22 V 22 H 0 Z"/>
-                                            <GeometryDrawing Brush="#667184">
-                                                <GeometryDrawing.Geometry>
-                                                    <EllipseGeometry Center="1,1" RadiusX="0.8" RadiusY="0.8"/>
-                                                </GeometryDrawing.Geometry>
-                                            </GeometryDrawing>
-                                        </DrawingGroup>
-                                    </DrawingBrush.Drawing>
-                                </DrawingBrush>
-                            </Rectangle.Fill>
-                        </Rectangle>
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
                             <Border Width="72" Height="72" CornerRadius="22" Background="#232B39" BorderBrush="#4B5361" BorderThickness="1">
                                 <Path Fill="{StaticResource AccentBrush}" Width="19" Height="23" Stretch="Fill"
@@ -194,9 +179,31 @@
                     <ScrollViewer x:Name="ImagePanel" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="3,0,4,0">
-                            <TextBlock Text="Estilo de imagen" Style="{StaticResource EffectLabel}" Margin="0,0,0,5"/>
-                            <Button x:Name="PresetButton" Content="Original" Click="OnPresetMenu"
-                                    ToolTip="Elegir preajuste de imagen" AutomationProperties.Name="Preajuste de imagen" Margin="0,0,0,14"/>
+                            <TextBlock Text="Relación de aspecto" Style="{StaticResource EffectLabel}" Margin="0,0,0,6"/>
+                            <Button x:Name="AspectButton" Content="Original" Click="OnAspectMenu" MinHeight="34"
+                                    ToolTip="Cambiar relación de aspecto" Margin="0,0,0,14"/>
+                            <TextBlock Text="Estilo de imagen" Style="{StaticResource EffectLabel}" Margin="0,0,0,6"/>
+                            <Button x:Name="PresetButton" Click="OnPresetMenu" MinHeight="34"
+                                    ToolTip="Elegir estilo de imagen" Margin="0,0,0,8"
+                                    AutomationProperties.Name="{Binding Text, ElementName=PresetLabel, StringFormat='Estilo de imagen: {0}'}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="PresetLabel" Text="Original"/>
+                                    <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="CompareEffectsButton" Content="Ver original" Click="OnCompareEffects"
+                                    ToolTip="Compara la imagen con los ajustes actuales" Margin="0,0,0,14">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=PresetLabel}" Value="Original">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
 
                             <Grid>
                                 <TextBlock Text="Brillo" Style="{StaticResource EffectLabel}"/>
@@ -292,6 +299,10 @@
                     <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="70" Width="56" Margin="1,0,8,0"
                             SmallChange="5" LargeChange="10" ValueChanged="OnVolumeChanged" ToolTip="Volumen"
                             AutomationProperties.Name="Volumen"/>
+                    <Button x:Name="SoundButton" Style="{StaticResource IconButton}" Click="OnSoundMenu"
+                            ToolTip="Sonido y ecualizador" AutomationProperties.Name="Sonido y ecualizador">
+                        <TextBlock Text="&#xE9E9;" Style="{StaticResource Glyph}" FontSize="15"/>
+                    </Button>
                     <Button x:Name="SubtitleButton" Style="{StaticResource IconButton}" Click="OnSubtitleMenu"
                             ToolTip="Subtítulos (Ctrl+T)" AutomationProperties.Name="Subtítulos">
                         <Border BorderThickness="1" BorderBrush="{StaticResource MutedBrush}" CornerRadius="3" Padding="3,0">
