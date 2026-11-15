@@ -38,6 +38,16 @@ dotnet publish src/LumenPlayer.csproj -c Release -r win-x64 --self-contained tru
 
 Si utilizas el SDK local del proyecto, sustituye dotnet por .\.tools\dotnet\dotnet.exe.
 
+## Instalador para Windows
+
+Ejecuta `dist/LumenPlayer-0.2.0-Setup-x64.exe` para instalar Lumen Player en tu cuenta. El instalador agrega un acceso al menú Inicio y registra la desinstalación en **Configuración > Aplicaciones**.
+
+Para volver a generar el instalador, publica primero la app y luego compila la receta con Inno Setup 6.7.4. Desde la raíz del proyecto, el compilador local se ejecuta así.
+
+```powershell
+.\.tools\inno\ISCC.exe installer\LumenPlayer.iss
+```
+
 ## Dependencias
 
 - [LibVLC y LibVLCSharp](https://www.videolan.org/developers/vlc.html) de VideoLAN.
