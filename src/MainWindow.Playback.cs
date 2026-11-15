@@ -158,6 +158,8 @@ public partial class MainWindow
 
         _requestId++;
         _requestedPlayback = false;
+        ResetLiveWindow();
+        _previousSubtitleTrack = null;
         if (_media is not null)
         {
             _player.Stop();
@@ -234,6 +236,8 @@ public partial class MainWindow
     {
         _requestId++;
         _requestedPlayback = false;
+        ResetLiveWindow();
+        _previousSubtitleTrack = null;
         _player?.Stop();
         SetVideoVisible(false);
         SetPlaceholder(message, _current?.Title ?? "", allowAction: _current is not null);
@@ -488,13 +492,21 @@ public partial class MainWindow
     private void SeekToFraction(double fraction)
     {
         if (_player is { IsSeekable: true, Length: > 0 })
+        {
+            if (_liveCaptions)
+                ResetLiveWindow();
             _player.Time = (long)(_player.Length * fraction);
+        }
     }
 
     private void Skip(long milliseconds)
     {
         if (_player is { IsSeekable: true, Length: > 0 })
+        {
+            if (_liveCaptions)
+                ResetLiveWindow();
             _player.Time = Math.Clamp(_player.Time + milliseconds, 0, _player.Length);
+        }
     }
 
     private static string FormatTime(long milliseconds)

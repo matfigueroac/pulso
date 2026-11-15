@@ -89,7 +89,15 @@
                                    DragOver="OnDragOver" Drop="OnDrop">
                         <Border Background="Transparent" AllowDrop="True" MouseLeftButtonDown="OnViewportClick"
                                 MouseRightButtonUp="OnViewportRightClick"
-                                DragOver="OnDragOver" Drop="OnDrop" PreviewKeyDown="OnKeyDown"/>
+                                DragOver="OnDragOver" Drop="OnDrop" PreviewKeyDown="OnKeyDown">
+                            <Grid Margin="24,0,24,24" IsHitTestVisible="False">
+                                <Border x:Name="LiveCaptionBox" Visibility="Collapsed" HorizontalAlignment="Center"
+                                        VerticalAlignment="Bottom" Background="#E20C1016" CornerRadius="8" Padding="14,7">
+                                    <TextBlock x:Name="LiveCaptionText" Foreground="#FFF7F7FA" FontSize="21"
+                                               FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Border>
+                            </Grid>
+                        </Border>
                     </vlc:VideoView>
                     <Grid x:Name="Placeholder" ClipToBounds="True">
                         <Grid.Background>
@@ -303,11 +311,16 @@
                             ToolTip="Sonido y ecualizador" AutomationProperties.Name="Sonido y ecualizador">
                         <TextBlock Text="&#xE9E9;" Style="{StaticResource Glyph}" FontSize="15"/>
                     </Button>
-                    <Button x:Name="SubtitleButton" Style="{StaticResource IconButton}" Click="OnSubtitleMenu"
-                            ToolTip="Subtítulos (Ctrl+T)" AutomationProperties.Name="Subtítulos">
-                        <Border BorderThickness="1" BorderBrush="{StaticResource MutedBrush}" CornerRadius="3" Padding="3,0">
-                            <TextBlock Text="CC" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                    <Button x:Name="SubtitleButton" Style="{StaticResource IconButton}" Click="OnToggleLiveCaptions"
+                            ToolTip="Activar CC en vivo (inglés)" AutomationProperties.Name="Activar CC en vivo (inglés)">
+                        <Border x:Name="CcBorder" BorderThickness="1" BorderBrush="{StaticResource MutedBrush}" CornerRadius="3" Padding="3,0">
+                            <TextBlock x:Name="CcLabel" Text="CC" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
                         </Border>
+                    </Button>
+                    <Button x:Name="SubtitleOptions" Style="{StaticResource IconButton}" Click="OnSubtitleMenu"
+                            MinWidth="20" Width="20" Padding="0" Margin="-3,0,0,0"
+                            ToolTip="Opciones de subtítulos" AutomationProperties.Name="Opciones de subtítulos">
+                        <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10"/>
                     </Button>
                     <Button x:Name="PlaybackOptions" Style="{StaticResource IconButton}" Click="OnPlaybackMenu"
                             ToolTip="Opciones de reproducción" AutomationProperties.Name="Opciones de reproducción">

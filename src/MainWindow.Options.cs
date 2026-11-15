@@ -68,6 +68,8 @@ public partial class MainWindow
         var enabled = _current is not null;
         var menu = new List<Control>
         {
+            CheckCommand("CC en vivo (inglés)", _liveCaptions, ToggleLiveCaptions),
+            MenuSeparator(),
             Command("Cargar subtítulos…", OpenSubtitle, "Ctrl+T", enabled),
             MenuSeparator()
         };
@@ -80,6 +82,7 @@ public partial class MainWindow
 
         var trackItems = BuildTracks(_player?.SpuDescription, _player?.Spu ?? -1, id =>
         {
+            SetLiveCaptions(false, announce: false);
             if (_player?.SetSpu(id) == true)
                 SetStatus(id < 0 ? "Subtítulos desactivados" : "Pista de subtítulos seleccionada");
         }, "Sin pistas de subtítulos");
@@ -129,7 +132,13 @@ public partial class MainWindow
         var failed = 0;
         foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            if (!File.Exists(path) || (_requestedPlayback && !_player.AddSlave(MediaSlaveType.Subtitle, new Uri(path).AbsoluteUri, true)))
+            if (!File.Exists(path))
+            {
+                failed++;
+                continue;
+            }
+            SetLiveCaptions(false, announce: false);
+            if (_requestedPlayback && !_player.AddSlave(MediaSlaveType.Subtitle, new Uri(path).AbsoluteUri, true))
             {
                 failed++;
                 continue;

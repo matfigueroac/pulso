@@ -16,7 +16,7 @@ public partial class MainWindow
     {
         if (_subtitleGeneration is not null)
         {
-            yield return Command("Cancelar generación", () => _subtitleGeneration?.Cancel(),
+            yield return Command("Cancelar generación del SRT", () => _subtitleGeneration?.Cancel(),
                 enabled: !_subtitleGeneration.IsCancellationRequested);
             yield break;
         }
@@ -38,13 +38,13 @@ public partial class MainWindow
 
         if (cached is not null)
         {
-            yield return Command("Cargar subtítulos automáticos (inglés)", () => AttachSubtitles([cached]));
-            yield return Command("Guardar subtítulos automáticos como SRT…", () => SaveGeneratedSubtitles(entry, cached));
+            yield return Command("Cargar SRT generado (inglés)", () => AttachSubtitles([cached]));
+            yield return Command("Guardar copia del SRT…", () => SaveGeneratedSubtitles(entry, cached));
         }
         else
         {
             yield return SpeechRecognition.IsAvailable
-                ? Command("Generar subtítulos en inglés", () => GenerateSubtitles(entry))
+                ? Command("Generar subtítulos automáticos (SRT)", () => GenerateSubtitles(entry))
                 : Command("Motor de subtítulos no disponible", () => { }, enabled: false);
         }
     }
@@ -53,6 +53,7 @@ public partial class MainWindow
     {
         if (_subtitleGeneration is not null)
             return;
+        SetLiveCaptions(false, announce: false);
         using var generation = new CancellationTokenSource();
         _subtitleGeneration = generation;
         var progress = new Progress<string>(message =>
@@ -60,13 +61,14 @@ public partial class MainWindow
             if (ReferenceEquals(_subtitleGeneration, generation) && !generation.IsCancellationRequested)
             {
                 SetStatus(message);
-                SubtitleButton.ToolTip = message;
+                SubtitleOptions.ToolTip = message;
             }
         });
         try
         {
             var target = SpeechRecognition.GetSubtitlePath(entry.Location);
             await SpeechRecognition.Generate(entry.Location, target, progress, generation.Token);
+            generation.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_current, entry))
             {
                 AttachSubtitles([target]);
@@ -81,7 +83,7 @@ public partial class MainWindow
         }
         catch (OperationCanceledException)
         {
-            if (_ready)
+            if (_ready && !_liveCaptions)
                 SetStatus("Generación de subtítulos cancelada");
         }
         catch (InvalidDataException ex)
@@ -97,7 +99,7 @@ public partial class MainWindow
         finally
         {
             _subtitleGeneration = null;
-            SubtitleButton.ToolTip = "Subtítulos (Ctrl+T)";
+            SubtitleOptions.ToolTip = "Opciones de subtítulos";
         }
     }
 

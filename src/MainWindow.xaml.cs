@@ -40,6 +40,7 @@ public partial class MainWindow : Window
         _clock.Tick += (_, _) =>
         {
             RefreshPlayback();
+            RefreshLiveCaptions();
             RefreshFullscreenControls();
         };
         Activated += (_, _) => { if (_fullscreen) Topmost = true; };
@@ -69,6 +70,7 @@ public partial class MainWindow : Window
     {
         _clock.Stop();
         _effectTimer.Stop();
+        ResetLiveWindow();
         _subtitleGeneration?.Cancel();
         if (_ready)
             SavePreferences(new((int)Math.Round(VolumeSlider.Value), _muted, _audioPreset, _audioBoost));

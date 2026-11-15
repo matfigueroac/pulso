@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -41,30 +42,14 @@ internal static class SpeechRecognition
         try
         {
             progress.Report("Buscando la pista en inglés…");
-            var metadata = await Run("FFmpeg", "ffprobe.exe",
-                ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index:stream_tags=language:stream_disposition=default",
-                 "-of", "json", input], cancellation, capture: true).ConfigureAwait(false);
-            using var json = JsonDocument.Parse(metadata);
-            var audio = json.RootElement.GetProperty("streams").EnumerateArray()
-                .OrderByDescending(IsEnglish)
-                .ThenByDescending(stream => stream.TryGetProperty("disposition", out var disposition)
-                    && disposition.TryGetProperty("default", out var flag) && flag.GetInt32() == 1)
-                .ToArray();
-            if (audio.Length == 0)
-                throw new InvalidDataException("El archivo no tiene pistas de audio.");
-            var index = audio[0].GetProperty("index").GetInt32().ToString(CultureInfo.InvariantCulture);
+            var index = await FindAudioStream(input, -1, cancellation).ConfigureAwait(false);
 
             progress.Report("Extrayendo el audio…");
-            await Run("FFmpeg", "ffmpeg.exe",
-                ["-hide_banner", "-nostdin", "-loglevel", "error", "-i", input, "-map", "0:" + index,
-                 "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", wave], cancellation).ConfigureAwait(false);
+            await ExtractAudio(input, index, wave, cancellation).ConfigureAwait(false);
 
             progress.Report("Reconociendo el diálogo en inglés…");
             var lastPercent = -1;
-            await Run("Whisper", "whisper-cli.exe",
-                ["-m", Path.Combine(Tools, "Whisper", ModelName), "-f", wave, "-l", "en", "-ng",
-                 "-t", Math.Clamp(Environment.ProcessorCount / 2, 1, 6).ToString(CultureInfo.InvariantCulture),
-                 "-pp", "-osrt", "-of", output], cancellation, onErrorLine: line =>
+            await Transcribe(wave, output, ["-pp", "-osrt"], 6, cancellation, onErrorLine: line =>
                 {
                     var percent = line.IndexOf('%');
                     var equals = line.LastIndexOf('=');
@@ -92,6 +77,82 @@ internal static class SpeechRecognition
             }
         }
     }
+
+    public static async Task<string> FindAudioStream(string input, int preferredOrdinal, CancellationToken cancellation)
+    {
+        var metadata = await Run("FFmpeg", "ffprobe.exe",
+            ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index:stream_tags=language:stream_disposition=default",
+             "-of", "json", input], cancellation, capture: true).ConfigureAwait(false);
+        using var json = JsonDocument.Parse(metadata);
+        var streams = json.RootElement.GetProperty("streams").EnumerateArray().ToArray();
+        if (streams.Length == 0)
+            throw new InvalidDataException("El archivo no tiene pistas de audio.");
+        var stream = preferredOrdinal >= 0 && preferredOrdinal < streams.Length ? streams[preferredOrdinal]
+            : streams.OrderByDescending(IsEnglish)
+                .ThenByDescending(candidate => candidate.TryGetProperty("disposition", out var disposition)
+                    && disposition.TryGetProperty("default", out var flag) && flag.GetInt32() == 1)
+                .First();
+        return stream.GetProperty("index").GetInt32().ToString(CultureInfo.InvariantCulture);
+    }
+
+    public static async Task<List<CaptionCue>> RecognizeWindow(string input, string index, long start, long end,
+        CancellationToken cancellation)
+    {
+        var scratch = Directory.CreateTempSubdirectory("lumen-live-");
+        try
+        {
+            var wave = Path.Combine(scratch.FullName, "audio.wav");
+            var output = Path.Combine(scratch.FullName, "captions");
+            await ExtractAudio(input, index, wave, cancellation, start, end - start).ConfigureAwait(false);
+            // An audio stream may end before the video. FFmpeg then writes only the WAV header.
+            if (new FileInfo(wave).Length < 1600)
+                return [];
+
+            await Transcribe(wave, output, ["-oj", "-ml", "78", "-sow", "-bs", "1", "-bo", "1", "-nf"],
+                4, cancellation).ConfigureAwait(false);
+            await using var jsonFile = File.OpenRead(output + ".json");
+            using var json = await JsonDocument.ParseAsync(jsonFile, cancellationToken: cancellation).ConfigureAwait(false);
+            var cues = new List<CaptionCue>();
+            foreach (var segment in json.RootElement.GetProperty("transcription").EnumerateArray())
+            {
+                var offsets = segment.GetProperty("offsets");
+                var from = Math.Clamp(start + offsets.GetProperty("from").GetInt64(), start, end);
+                var to = Math.Clamp(start + offsets.GetProperty("to").GetInt64(), from, end);
+                var text = segment.GetProperty("text").GetString()?.Trim();
+                if (to > from && !string.IsNullOrWhiteSpace(text))
+                    cues.Add(new(from, to, text));
+            }
+            return cues;
+        }
+        finally
+        {
+            try { scratch.Delete(recursive: true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Trace.TraceWarning("Limpieza de subtítulos en vivo: {0}", ex.Message);
+            }
+        }
+    }
+
+    private static Task<string> ExtractAudio(string input, string index, string wave, CancellationToken cancellation,
+        long start = 0, long? duration = null) =>
+        Run("FFmpeg", "ffmpeg.exe",
+            ["-hide_banner", "-nostdin", "-loglevel", "error",
+             ..(start > 0 ? new[] { "-ss", Seconds(start) } : Array.Empty<string>()),
+             "-i", input, "-map", "0:" + index,
+             ..(duration is long length ? new[] { "-t", Seconds(length) } : Array.Empty<string>()),
+             "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", wave], cancellation);
+
+    private static string Seconds(long milliseconds) => (milliseconds / 1000d).ToString("0.000", CultureInfo.InvariantCulture);
+
+    private static Task<string> Transcribe(string wave, string output, string[] options, int maxThreads,
+        CancellationToken cancellation, Action<string>? onErrorLine = null) =>
+        Run("Whisper", "whisper-cli.exe",
+            ["-m", Path.Combine(Tools, "Whisper", ModelName), "-f", wave, "-l", "en", "-ng",
+             "-t", Math.Clamp(Environment.ProcessorCount / 2, 1, maxThreads).ToString(CultureInfo.InvariantCulture),
+             ..options, "-of", output], cancellation, onErrorLine: onErrorLine);
+
+    internal sealed record CaptionCue(long Start, long End, string Text);
 
     private static bool IsEnglish(JsonElement stream) =>
         stream.TryGetProperty("tags", out var tags) && tags.TryGetProperty("language", out var language)

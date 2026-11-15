@@ -9,7 +9,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
     <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <AssemblyTitle>Lumen Player</AssemblyTitle>
     <Product>Lumen Player</Product>
