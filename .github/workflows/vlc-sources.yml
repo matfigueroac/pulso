@@ -17,7 +17,7 @@ jobs:
         run: |
           set -euo pipefail
           image=registry.videolan.org/vlc-debian-win64-3.0@sha256:b8e61c83d248cfb8fc3432d347f07f24de5a2ea6b0060cfe3053243e3674e6e7
-          docker run --rm -v "$PWD:/vlc" -w /vlc --entrypoint /bin/bash "$image" -euc '
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/vlc" -w /vlc --entrypoint /bin/bash "$image" -euc '
             script=extras/package/win32/build.sh
             test "$(grep -c "^make list$" "$script")" = 1
             sed -n "1,/^make list$/p" "$script" > extras/package/win32/source-list.sh
