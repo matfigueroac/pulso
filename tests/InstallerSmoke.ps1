@@ -80,3 +80,23 @@ if ($uninstallProcess.ExitCode -ne 0 -or (Test-Path -LiteralPath (Join-Path $ins
     throw 'Falló la desinstalación de Pulso.'
 }
 Write-Host 'Instalación y desinstalación completas verificadas.'
+
+# A second machine can use the same two upstream downloads without network access.
+$vlcName = 'videolan.libvlc.windows.3.0.24.nupkg'
+$vlcSidecar = Join-Path $Setup.DirectoryName $vlcName
+$ffmpegSidecar = Join-Path $Setup.DirectoryName 'ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-shared-8.1.zip'
+$nugetRoot = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $env:USERPROFILE '.nuget/packages' }
+Copy-Item (Join-Path $PSScriptRoot '../work/speech-deps/ffmpeg.zip') $ffmpegSidecar
+Set-Content -LiteralPath $vlcSidecar -Value 'paquete de prueba incompleto'
+$invalid = Start-Process $Setup.FullName -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
+if (!$invalid.ExitCode -or (Test-Path (Join-Path $install 'LumenPlayer.exe'))) {
+    throw 'El instalador aceptó un paquete local dañado.'
+}
+Copy-Item (Join-Path $nugetRoot "videolan.libvlc.windows/3.0.24/$vlcName") $vlcSidecar -Force
+$offline = Start-Process $Setup.FullName -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
+if ($offline.ExitCode -ne 0 -or !(Test-Path (Join-Path $install 'libvlc/win-x64/libvlc.dll'))) {
+    throw 'Falló la instalación desde los paquetes locales verificados.'
+}
+$cleanup = Start-Process $uninstaller -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -WindowStyle Hidden -PassThru -Wait
+if ($cleanup.ExitCode -ne 0) { throw 'Falló la desinstalación de la segunda copia.' }
+Write-Host 'Se rechazó el paquete dañado y se instaló con los dos paquetes locales correctos.'

@@ -1,6 +1,6 @@
 # Guía de uso
 
-En el paquete portable, ejecuta `LumenPlayer.exe` desde la carpeta extraída y conserva juntos los archivos. El paquete incluye el motor multimedia y el runtime de .NET. Si compilas desde el código fuente, el comando de publicación deja el portable en `dist/LumenPlayer`.
+En Windows x64, ejecuta el instalador y abre **Pulso** desde Inicio. Si compilas el portable, abre `LumenPlayer.exe` en `dist/LumenPlayer` y conserva juntos sus archivos.
 
 ## Archivos y cola
 

@@ -4,6 +4,7 @@ const
   FFmpegPackage = '{#FFmpegRoot}.zip';
 var
   MediaDownloads: TDownloadWizardPage;
+  NeedsDownload: Boolean;
 
 procedure InitializeWizard;
 begin
@@ -19,6 +20,7 @@ begin
   LocalFile := ExpandConstant('{src}\') + Name;
   if not FileExists(LocalFile) then begin
     MediaDownloads.Add(BaseUrl + Name, Name, Hash);
+    NeedsDownload := True;
     Exit;
   end;
   StagedFile := ExpandConstant('{tmp}\') + Name;
@@ -42,6 +44,7 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   MediaDownloads.Clear;
+  NeedsDownload := False;
   MediaDownloads.Show;
   try
     try
@@ -49,7 +52,8 @@ begin
         VlcPackage, '3da3f37ee2b2b10e5c788d830a3b513658c36521ea1b0f966ed86eb69f41ef3c');
       QueuePackage('https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-14-12-37/',
         FFmpegPackage, '97927ac5391d5e3a11dc3bce679d54f7fde04cf54380a09970c32eea49ba20a2');
-      MediaDownloads.Download;
+      if NeedsDownload then
+        MediaDownloads.Download;
       MediaDownloads.SetText('Extrayendo los componentes verificados…', '');
       Unpack(VlcPackage, 'build/x64');
       Unpack(FFmpegPackage, '{#FFmpegRoot}/bin {#FFmpegRoot}/LICENSE.txt');

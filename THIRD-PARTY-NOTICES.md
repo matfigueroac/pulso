@@ -14,6 +14,8 @@ La licencia [MIT](LICENSE) cubre el código propio de Pulso. Las dependencias, l
 
 ## Componentes opcionales de transcripción
 
+En la distribución pública 0.4.32, el instalador obtiene los paquetes originales de LibVLC y FFmpeg del distribuidor o de copias locales verificadas. Las DLL administradas de LibVLCSharp y su integración WPF se incluyen en el instalador. Las fuentes de ambos ensamblados, con sus proyectos y licencia, se ofrecen junto al instalador. [Descargas y fuentes de la versión 0.4.32](https://github.com/matfigueroac/pulso/releases/tag/v0.4.32)
+
 `installer/Prepare-Speech.ps1` registra las URL y las sumas SHA-256 de los archivos descargados.
 
 | Componente | Origen | Licencia y avisos en el paquete |

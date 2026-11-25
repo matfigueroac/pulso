@@ -19,8 +19,15 @@ En `dist`, ejecuta el instalador `Pulso-<versión>-Setup-x64.exe` de la versión
 Para generar el instalador, publica primero la app y luego compila la receta con Inno Setup 6.7.4. Para el instalador con transcripción, ejecuta `installer/Prepare-Speech.ps1` antes de publicar la app. Con Inno Setup instalado en su ubicación predeterminada, ejecuta desde la raíz del proyecto.
 
 ```powershell
-& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" .\installer\LumenPlayer.iss
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" .\installer\WindowsDistribution.iss
 ```
+
+El instalador público incorpora los modelos de voz. Obtiene los motores de reproducción y transcripción de NuGet y de FFmpeg-Builds durante la instalación (unos 215 MiB en total) y valida ambos con SHA-256. Después puedes reproducir y transcribir sin conexión.
+
+Para instalar en otro equipo sin internet, guarda estos dos archivos junto al instalador, con sus nombres originales. El instalador los verifica antes de modificar la instalación.
+
+- [VideoLAN.LibVLC.Windows 3.0.24 de NuGet](https://api.nuget.org/v3-flatcontainer/videolan.libvlc.windows/3.0.24/videolan.libvlc.windows.3.0.24.nupkg)
+- [FFmpeg 8.1.3 para Windows x64 de FFmpeg-Builds](https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-14-12-37/ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-shared-8.1.zip)
 
 ## Pruebas de cola y reanudación
 
