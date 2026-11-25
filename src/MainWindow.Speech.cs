@@ -24,28 +24,49 @@ public partial class MainWindow
         var entry = _current;
         if (entry is null)
             yield break;
-        string? cached = null;
-        try
-        {
-            var candidate = SpeechRecognition.GetSubtitlePath(entry.Location);
-            if (File.Exists(candidate))
-                cached = candidate;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Trace.TraceWarning(ex.Message);
-        }
+        var cached = SpeechRecognition.FindGeneratedSubtitle(entry.Location);
 
         if (cached is not null)
         {
             yield return Command("Cargar SRT generado (inglés)", () => AttachSubtitles([cached]));
+            yield return Command("Mostrar SRT generado en el Explorador", () => ShowSubtitleFile(cached));
             yield return Command("Guardar copia del SRT…", () => SaveGeneratedSubtitles(entry, cached));
         }
-        else
+        if (!File.Exists(SpeechRecognition.GetSubtitlePath(entry.Location)))
         {
             yield return SpeechRecognition.IsAvailable
-                ? Command("Generar subtítulos automáticos (SRT)", () => GenerateSubtitles(entry))
+                ? Command(cached is null ? "Generar y guardar SRT junto al video…" : "Generar SRT mejorado…",
+                    () => GenerateSubtitles(entry))
                 : Command("Motor de subtítulos no disponible", () => { }, enabled: false);
+        }
+
+        _subtitleFiles.TryGetValue(CurrentSubtitleTrack, out var active);
+        var adjacent = FindAdjacentSrt(entry.Location);
+        var external = File.Exists(active) && Path.GetExtension(active).Equals(".srt", StringComparison.OrdinalIgnoreCase)
+            ? active : adjacent;
+        if (external is not null && !string.Equals(external, cached, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.Equals(external, active, StringComparison.OrdinalIgnoreCase))
+                yield return Command("Cargar " + Path.GetFileName(external), () => AttachSubtitles([external]));
+            yield return Command("Mostrar SRT en el Explorador", () => ShowSubtitleFile(external));
+        }
+    }
+
+    private void ShowSubtitleFile(string path)
+    {
+        if (!File.Exists(path))
+        {
+            SetStatus("El archivo SRT ya no está en esa ubicación.", error: true);
+            return;
+        }
+        try
+        {
+            Process.Start("explorer.exe", "/select,\"" + path + "\"")?.Dispose();
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            SetStatus("No se pudo abrir el Explorador.", error: true);
+            Trace.TraceWarning(ex.Message);
         }
     }
 
@@ -53,6 +74,7 @@ public partial class MainWindow
     {
         if (_subtitleGeneration is not null)
             return;
+        _pendingSubtitleMode = null;
         SetLiveCaptions(false, announce: false);
         using var generation = new CancellationTokenSource();
         _subtitleGeneration = generation;
@@ -67,18 +89,19 @@ public partial class MainWindow
         try
         {
             var target = SpeechRecognition.GetSubtitlePath(entry.Location);
-            await SpeechRecognition.Generate(entry.Location, target, progress, generation.Token);
+            var ordinal = GetAudioOrdinal(_player?.AudioTrack ?? -1);
+            await SpeechRecognition.Generate(entry.Location, target, ordinal, progress, generation.Token);
             generation.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_current, entry))
             {
                 AttachSubtitles([target]);
                 if (entry.Subtitles.Contains(target))
-                    SetStatus("Subtítulos en inglés listos");
+                    SetStatus("SRT guardado junto al video · " + Path.GetFileName(target));
             }
             else
             {
                 entry.Subtitles.Add(target);
-                SetStatus("Subtítulos en inglés listos para " + entry.Title);
+                SetStatus("SRT guardado junto a " + entry.Title);
             }
         }
         catch (OperationCanceledException)
@@ -90,7 +113,11 @@ public partial class MainWindow
         {
             SetStatus(ex.Message, error: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception
+        catch (UnauthorizedAccessException)
+        {
+            SetStatus("No hay permiso para guardar el SRT en la carpeta del video.", error: true);
+        }
+        catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception
             or System.Text.Json.JsonException or InvalidOperationException)
         {
             SetStatus("No se pudieron generar los subtítulos en inglés.", error: true);
@@ -110,6 +137,7 @@ public partial class MainWindow
             Title = "Guardar subtítulos en inglés",
             Filter = "Subtítulos SRT|*.srt",
             DefaultExt = ".srt",
+            InitialDirectory = Path.GetDirectoryName(entry.Location),
             FileName = Path.GetFileNameWithoutExtension(entry.Title) + ".en.srt"
         };
         if (picker.ShowDialog(this) != true)

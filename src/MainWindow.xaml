@@ -3,8 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
-        Title="Lumen Player" Icon="Assets/Lumen.ico" Width="1160" Height="748" MinWidth="800" MinHeight="535"
-        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize"
+        xmlns:local="clr-namespace:LumenPlayer"
+        Title="Pulso" Icon="Assets/Lumen.ico" Width="1160" Height="748" MinWidth="800" MinHeight="535"
+        WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow" ResizeMode="CanResize"
         Language="es-CL" FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{StaticResource TextBrush}"
         Background="{StaticResource WindowBrush}" UseLayoutRounding="True"
         Loaded="OnLoaded" Closed="OnClosed" StateChanged="OnWindowStateChanged"
@@ -28,6 +29,34 @@
             <Setter Property="HorizontalAlignment" Value="Right"/>
             <Setter Property="FontSize" Value="11"/>
         </Style>
+        <Style x:Key="PanelToggleButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <Grid Width="18" Height="16">
+                            <Rectangle x:Name="PanelGlyphFill" Width="5" Margin="0,2,1,2" HorizontalAlignment="Right" RadiusX="1" RadiusY="1"
+                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Opacity="0"/>
+                            <Rectangle Margin="0.75,1.75" RadiusX="2.5" RadiusY="2.5" StrokeThickness="1.5"
+                                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <Path Data="M 11.5,2 L 11.5,14" StrokeThickness="1.5"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding}" Value="True">
+                                <Setter TargetName="PanelGlyphFill" Property="Opacity" Value="0.55"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                    <Setter Property="Background" Value="{StaticResource RaisedBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid x:Name="Shell" Margin="1" Background="{StaticResource WindowBrush}">
@@ -43,34 +72,31 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="34" Height="34" CornerRadius="9" Background="{StaticResource AccentBrush}">
-                    <Path Fill="{StaticResource AccentInkBrush}" Width="13" Height="15" Stretch="Fill"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0"
-                          Data="M 1,0 L 13,6.4 Q 14,7.4 13,8.5 L 1,15 Q 0,15.4 0,14 L 0,1 Q 0,-0.4 1,0 Z"/>
-                </Border>
-                <TextBlock Text="Lumen Player" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
-            </StackPanel>
+            <Button x:Name="MainMenuButton" Click="OnOpenMenu" VerticalAlignment="Center" Padding="4,3,10,3"
+                    ToolTip="Menú principal" AutomationProperties.Name="Menú principal">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource RaisedBrush}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource StrokeBrush}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <StackPanel Orientation="Horizontal">
+                    <Image Source="Assets/Lumen.png" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="Pulso" FontSize="16" FontWeight="SemiBold" Margin="10,0,12,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10" Opacity="0.7"/>
+                </StackPanel>
+            </Button>
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Click="OnOpen" ToolTip="Abrir archivos (Ctrl+O)" AutomationProperties.Name="Abrir archivos" Margin="0,0,4,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE838;" Style="{StaticResource Glyph}" FontSize="14" Margin="0,0,8,0"/>
-                        <AccessText Text="_Abrir"/>
-                    </StackPanel>
-                </Button>
-                <Button Style="{StaticResource IconButton}" Click="OnOpenMenu" ToolTip="Opciones de archivo"
-                        AutomationProperties.Name="Opciones de archivo" Width="29">
-                    <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="11"/>
-                </Button>
-                <Button x:Name="PanelButton" Style="{StaticResource IconButton}" Click="OnTogglePanel" Margin="7,0,0,0"
-                        ToolTip="Mostrar u ocultar panel (Ctrl+L)" AutomationProperties.Name="Mostrar u ocultar panel">
-                    <TextBlock Text="&#xE8A9;" Style="{StaticResource Glyph}" FontSize="15"/>
-                </Button>
-                <Border Width="1" Height="21" Background="{StaticResource StrokeBrush}" Margin="10,0,7,0"/>
                 <Button Style="{StaticResource WindowButton}" Click="OnMinimize" Content="&#xE921;"
                         AutomationProperties.Name="Minimizar" ToolTip="Minimizar"/>
                 <Button x:Name="MaximizeButton" Style="{StaticResource WindowButton}" Click="OnMaximize" Content="&#xE922;"
-                        AutomationProperties.Name="Maximizar o restaurar" ToolTip="Maximizar o restaurar"/>
+                        AutomationProperties.Name="Maximizar ventana" ToolTip="Maximizar ventana"/>
                 <Button Style="{StaticResource WindowButton}" Click="OnClose" Content="&#xE8BB;"
                         AutomationProperties.Name="Cerrar" ToolTip="Cerrar"/>
             </StackPanel>
@@ -81,21 +107,26 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Border x:Name="Viewport" CornerRadius="12" Background="#090B10" BorderBrush="{StaticResource StrokeBrush}"
+            <Border x:Name="Viewport" CornerRadius="12" Background="Black" BorderBrush="{StaticResource StrokeBrush}"
                     BorderThickness="1" ClipToBounds="True" MouseLeftButtonDown="OnViewportClick"
                     MouseRightButtonUp="OnViewportRightClick">
                 <Grid>
-                    <vlc:VideoView x:Name="Video" Visibility="Collapsed" Focusable="False" AllowDrop="True"
+                    <vlc:VideoView x:Name="Video" Visibility="Collapsed" Focusable="False" AllowDrop="True" SizeChanged="OnVideoSizeChanged"
                                    DragOver="OnDragOver" Drop="OnDrop">
                         <Border Background="Transparent" AllowDrop="True" MouseLeftButtonDown="OnViewportClick"
                                 MouseRightButtonUp="OnViewportRightClick"
                                 DragOver="OnDragOver" Drop="OnDrop" PreviewKeyDown="OnKeyDown">
-                            <Grid Margin="24,0,24,24" IsHitTestVisible="False">
-                                <Border x:Name="LiveCaptionBox" Visibility="Collapsed" HorizontalAlignment="Center"
-                                        VerticalAlignment="Bottom" Background="#E20C1016" CornerRadius="8" Padding="14,7">
-                                    <TextBlock x:Name="LiveCaptionText" Foreground="#FFF7F7FA" FontSize="21"
-                                               FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap"/>
-                                </Border>
+                            <Grid x:Name="VideoOverlay" ClipToBounds="True">
+                                <Grid x:Name="CaptionLayer" Margin="28,0,28,30" IsHitTestVisible="False">
+                                    <Grid.RenderTransform>
+                                        <TranslateTransform x:Name="CaptionSlide"/>
+                                    </Grid.RenderTransform>
+                                    <Border x:Name="LiveCaptionBox" Visibility="Collapsed" HorizontalAlignment="Center"
+                                            VerticalAlignment="Bottom" Background="#D9000000" MaxWidth="680"
+                                            CornerRadius="5" Padding="14,5">
+                                        <local:CaptionText x:Name="LiveCaptionText" TextElement.FontFamily="{StaticResource UiFont}"/>
+                                    </Border>
+                                </Grid>
                             </Grid>
                         </Border>
                     </vlc:VideoView>
@@ -108,11 +139,7 @@
                             </RadialGradientBrush>
                         </Grid.Background>
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
-                            <Border Width="72" Height="72" CornerRadius="22" Background="#232B39" BorderBrush="#4B5361" BorderThickness="1">
-                                <Path Fill="{StaticResource AccentBrush}" Width="19" Height="23" Stretch="Fill"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="3,0,0,0"
-                                      Data="M 1,0 L 13,6.4 Q 14,7.4 13,8.5 L 1,15 Q 0,15.4 0,14 L 0,1 Q 0,-0.4 1,0 Z"/>
-                            </Border>
+                            <Image Source="Assets/Lumen.png" Width="72" Height="72" RenderOptions.BitmapScalingMode="HighQuality"/>
                             <TextBlock x:Name="HeroTitle" Text="Arrastra un archivo aquí" FontSize="26" FontWeight="SemiBold"
                                        Margin="0,17,0,0" TextAlignment="Center" TextWrapping="Wrap"/>
                             <TextBlock x:Name="HeroDetail" Text="Reproduce video o audio desde tu equipo."
@@ -121,36 +148,50 @@
                                     Click="OnHero" Margin="0,18,0,0" Padding="16,8" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
+                    <Grid x:Name="IdleTransportHost" ClipToBounds="True"/>
                 </Grid>
             </Border>
 
-            <Border x:Name="SidePanel" Grid.Column="1" Width="258" Margin="12,0,0,0" Background="{StaticResource PanelBrush}"
-                    BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
+            <Border x:Name="SidePanel" Grid.Column="1" Width="258" Margin="10,0,0,0" Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1" CornerRadius="10" Padding="12" ClipToBounds="True">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="SidePanelSlide"/>
+                </Border.RenderTransform>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Border Background="{StaticResource WindowBrush}" CornerRadius="8" Padding="3" Margin="0,0,0,12">
-                        <UniformGrid Columns="2">
+                    <DockPanel Margin="0,0,0,8">
+                        <Button x:Name="CloseSidePanelButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Click="OnTogglePanel"
+                                ToolTip="Cerrar panel (Esc)" AutomationProperties.Name="Cerrar panel">
+                            <TextBlock Text="&#xE711;" Style="{StaticResource Glyph}" FontSize="12"/>
+                        </Button>
+                        <TextBlock x:Name="SidePanelTitle" Text="Cola de reproducción" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                    </DockPanel>
+                    <Border Grid.Row="1" Background="{StaticResource WindowBrush}" CornerRadius="8" Padding="3" Margin="0,0,0,12">
+                        <UniformGrid Columns="3">
                             <RadioButton x:Name="QueueTab" GroupName="SideTabs" Content="Cola" IsChecked="True"
                                          Style="{StaticResource TabButton}" Checked="OnPanelTabChanged"/>
                             <RadioButton x:Name="ImageTab" GroupName="SideTabs" Content="Imagen"
                                          Style="{StaticResource TabButton}" Checked="OnPanelTabChanged"/>
+                            <RadioButton x:Name="SubtitleTab" GroupName="SideTabs" Content="Subtítulos"
+                                         Style="{StaticResource TabButton}" Checked="OnPanelTabChanged"/>
+                            <RadioButton x:Name="InfoTab" GroupName="SideTabs" Visibility="Collapsed"
+                                         Checked="OnPanelTabChanged"/>
                         </UniformGrid>
                     </Border>
 
-                    <Grid x:Name="QueuePanel" Grid.Row="1">
+                    <Grid x:Name="QueuePanel" Grid.Row="2" Background="Transparent" Drop="OnDrop">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <DockPanel Margin="0,0,0,8">
-                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Click="OnAdd"
-                                    ToolTip="Agregar a la cola (Ctrl+Mayús+O)" AutomationProperties.Name="Agregar a la cola">
-                                <TextBlock Text="&#xE710;" Style="{StaticResource Glyph}" FontSize="14"/>
-                            </Button>
+                            <Button DockPanel.Dock="Right" Click="OnAdd" Padding="9,4" Content="Agregar archivos"
+                                    ToolTip="Agregar a la cola (Ctrl+Mayús+O)" AutomationProperties.Name="Agregar archivos a la cola"/>
                             <TextBlock x:Name="QueueCount" Text="0 archivos" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="4,0"/>
                         </DockPanel>
                         <Border x:Name="EmptyQueue" Grid.Row="1" Padding="14" CornerRadius="8"
@@ -161,14 +202,28 @@
                         <ListBox x:Name="QueueList" Grid.Row="1" Background="Transparent" BorderThickness="0" Visibility="Collapsed"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Cola de reproducción"
                                  MouseDoubleClick="OnQueueDoubleClick" KeyDown="OnQueueKeyDown" SelectionChanged="OnQueueSelectionChanged">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleName}"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel>
-                                        <TextBlock Text="{Binding Icon}" Width="23" FontFamily="{StaticResource IconFont}" FontSize="12"
-                                                   Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <TextBlock Text="{Binding Title}" ToolTip="{Binding DisplayLocation}" TextTrimming="CharacterEllipsis"
-                                                   Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                    </DockPanel>
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Icon}" Width="23" FontFamily="{StaticResource IconFont}" FontSize="12"
+                                                       Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                            <TextBlock Text="{Binding Title}" ToolTip="{Binding DisplayLocation}" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                        </DockPanel>
+                                        <TextBlock x:Name="QueuePlaybackLabel" Text="{Binding PlaybackLabel}" Margin="28,3,0,0"
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding PlaybackLabel}" Value="{x:Null}">
+                                            <Setter TargetName="QueuePlaybackLabel" Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -184,154 +239,195 @@
                         </DockPanel>
                     </Grid>
 
-                    <ScrollViewer x:Name="ImagePanel" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
+                    <ScrollViewer x:Name="ImagePanel" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="3,0,4,0">
                             <TextBlock Text="Relación de aspecto" Style="{StaticResource EffectLabel}" Margin="0,0,0,6"/>
                             <Button x:Name="AspectButton" Content="Original" Click="OnAspectMenu" MinHeight="34"
                                     ToolTip="Cambiar relación de aspecto" Margin="0,0,0,14"/>
-                            <TextBlock Text="Estilo de imagen" Style="{StaticResource EffectLabel}" Margin="0,0,0,6"/>
-                            <Button x:Name="PresetButton" Click="OnPresetMenu" MinHeight="34"
-                                    ToolTip="Elegir estilo de imagen" Margin="0,0,0,8"
-                                    AutomationProperties.Name="{Binding Text, ElementName=PresetLabel, StringFormat='Estilo de imagen: {0}'}">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock x:Name="PresetLabel" Text="Original"/>
-                                    <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                            <Button x:Name="CompareEffectsButton" Content="Ver original" Click="OnCompareEffects"
-                                    ToolTip="Compara la imagen con los ajustes actuales" Margin="0,0,0,14">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Text, ElementName=PresetLabel}" Value="Original">
-                                                <Setter Property="IsEnabled" Value="False"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
+                            <TextBlock x:Name="HardwareDecodingHint" Style="{StaticResource MutedText}" Visibility="Collapsed"
+                                       TextWrapping="Wrap" Margin="0,0,0,12"
+                                       Text="La aceleración por hardware desactiva los ajustes de color. Puedes cambiar el modo en Opciones de reproducción."/>
+                            <StackPanel x:Name="VideoEffectsSettings">
+                                <TextBlock Text="Estilo de imagen" Style="{StaticResource EffectLabel}" Margin="0,0,0,6"/>
+                                <Button x:Name="PresetButton" Click="OnPresetMenu" MinHeight="34"
+                                        ToolTip="Elegir estilo de imagen" Margin="0,0,0,8"
+                                        AutomationProperties.Name="{Binding Text, ElementName=PresetLabel, StringFormat='Estilo de imagen: {0}'}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="PresetLabel" Text="Original"/>
+                                        <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="CompareEffectsButton" Content="Ver original" Click="OnCompareEffects"
+                                        ToolTip="Compara la imagen con los ajustes actuales" Margin="0,0,0,14">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=PresetLabel}" Value="Original">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
 
-                            <Grid>
-                                <TextBlock Text="Brillo" Style="{StaticResource EffectLabel}"/>
-                                <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Brightness, StringFormat=F2}"/>
-                            </Grid>
-                            <Slider x:Name="Brightness" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Brillo"
-                                    Maximum="2" Margin="0,0,0,6"/>
-                            <Grid>
-                                <TextBlock Text="Contraste" Style="{StaticResource EffectLabel}"/>
-                                <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Contrast, StringFormat=F2}"/>
-                            </Grid>
-                            <Slider x:Name="Contrast" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Contraste"
-                                    Maximum="2" Margin="0,0,0,6"/>
-                            <Grid>
-                                <TextBlock Text="Saturación" Style="{StaticResource EffectLabel}"/>
-                                <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Saturation, StringFormat=F2}"/>
-                            </Grid>
-                            <Slider x:Name="Saturation" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Saturación"
-                                    Maximum="3" Margin="0,0,0,6"/>
-                            <Grid>
-                                <TextBlock Text="Gamma" Style="{StaticResource EffectLabel}"/>
-                                <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Gamma, StringFormat=F2}"/>
-                            </Grid>
-                            <Slider x:Name="Gamma" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Gamma"
-                                    Minimum="0.1" Maximum="3" Margin="0,0,0,6"/>
-                            <Grid>
-                                <TextBlock Text="Tono" Style="{StaticResource EffectLabel}"/>
-                                <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Hue, StringFormat={}{0:F0}°}"/>
-                            </Grid>
-                            <Slider x:Name="Hue" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Tono"
-                                    Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="15" Margin="0,0,0,14"/>
-                            <Button Content="Restablecer ajustes" Click="OnResetEffects" HorizontalAlignment="Stretch"/>
+                                <Grid>
+                                    <TextBlock Text="Brillo" Style="{StaticResource EffectLabel}"/>
+                                    <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Brightness, StringFormat=F2}"/>
+                                </Grid>
+                                <Slider x:Name="Brightness" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Brillo"
+                                        Maximum="2" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <TextBlock Text="Contraste" Style="{StaticResource EffectLabel}"/>
+                                    <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Contrast, StringFormat=F2}"/>
+                                </Grid>
+                                <Slider x:Name="Contrast" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Contraste"
+                                        Maximum="2" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <TextBlock Text="Saturación" Style="{StaticResource EffectLabel}"/>
+                                    <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Saturation, StringFormat=F2}"/>
+                                </Grid>
+                                <Slider x:Name="Saturation" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Saturación"
+                                        Maximum="3" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <TextBlock Text="Gamma" Style="{StaticResource EffectLabel}"/>
+                                    <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Gamma, StringFormat=F2}"/>
+                                </Grid>
+                                <Slider x:Name="Gamma" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Gamma"
+                                        Minimum="0.1" Maximum="3" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <TextBlock Text="Tono" Style="{StaticResource EffectLabel}"/>
+                                    <TextBlock Style="{StaticResource EffectValue}" Text="{Binding Value, ElementName=Hue, StringFormat={}{0:F0}°}"/>
+                                </Grid>
+                                <Slider x:Name="Hue" Style="{StaticResource EffectSlider}" AutomationProperties.Name="Tono"
+                                        Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="15" Margin="0,0,0,14"/>
+                                <Button Content="Restablecer ajustes" Click="OnResetEffects" HorizontalAlignment="Stretch"/>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
+                    <ContentControl x:Name="SubtitlePanel" Grid.Row="2" Visibility="Collapsed"
+                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+                    <ScrollViewer x:Name="InfoPanel" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"/>
                 </Grid>
             </Border>
         </Grid>
 
-        <Grid Grid.Row="2" x:Name="Transport" Margin="18,8,18,11">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <Border Grid.Row="2" x:Name="Transport" Margin="0,8,0,0" Padding="18,7,18,10"
+                Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="TransportSlide"/>
+            </Border.RenderTransform>
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock x:Name="ElapsedText" Text="00:00" Style="{StaticResource MutedText}" VerticalAlignment="Center"
-                           MinWidth="46" Margin="0,0,4,0"/>
-                <Slider x:Name="SeekBar" Grid.Column="1" Minimum="0" Maximum="1" SmallChange="0.005" LargeChange="0.02" IsEnabled="False"
-                        ValueChanged="OnSeekChanged" ToolTip="Posición de reproducción" AutomationProperties.Name="Posición de reproducción"
-                        Thumb.DragStarted="OnSeekDragStarted" Thumb.DragCompleted="OnSeekDragCompleted"/>
-                <TextBlock x:Name="DurationText" Grid.Column="2" Text="--:--" Style="{StaticResource MutedText}" VerticalAlignment="Center"
-                           MinWidth="46" Margin="4,0,0,0" TextAlignment="Right"/>
-            </Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="ElapsedText" Text="00:00" Style="{StaticResource MutedText}" VerticalAlignment="Center"
+                               MinWidth="49" Margin="0,0,7,0" Typography.NumeralAlignment="Tabular"/>
+                    <Slider x:Name="SeekBar" Grid.Column="1" Minimum="0" Maximum="1" SmallChange="0.005" LargeChange="0.02" IsEnabled="False"
+                            ValueChanged="OnSeekChanged" ToolTip="Posición de reproducción" AutomationProperties.Name="Posición de reproducción"
+                            Thumb.DragStarted="OnSeekDragStarted" Thumb.DragCompleted="OnSeekDragCompleted"/>
+                    <TextBlock x:Name="DurationText" Grid.Column="2" Text="--:--" Style="{StaticResource MutedText}" VerticalAlignment="Center"
+                               MinWidth="49" Margin="7,0,0,0" TextAlignment="Right" Typography.NumeralAlignment="Tabular"/>
+                </Grid>
 
-            <Grid Grid.Row="1" Margin="0,5,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                    <TextBlock x:Name="NowPlaying" Text="Sin reproducción" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                               AutomationProperties.LiveSetting="Polite"/>
-                    <TextBlock x:Name="StatusText" Text="" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="PreviousButton" Style="{StaticResource IconButton}" Click="OnPrevious" ToolTip="Anterior"
-                            AutomationProperties.Name="Anterior" IsEnabled="False">
-                        <TextBlock Text="&#xE892;" Style="{StaticResource Glyph}"/>
-                    </Button>
-                    <Button x:Name="PlayButton" Style="{StaticResource PrimaryButton}" Click="OnPlayPause" Width="48" Height="39"
-                            Padding="0" Margin="5,0" ToolTip="Reproducir (Espacio)" AutomationProperties.Name="Reproducir">
-                        <TextBlock x:Name="PlayIcon" Text="&#xE768;" Style="{StaticResource Glyph}"/>
-                    </Button>
-                    <Button x:Name="NextButton" Style="{StaticResource IconButton}" Click="OnNext" ToolTip="Siguiente"
-                            AutomationProperties.Name="Siguiente" IsEnabled="False">
-                        <TextBlock Text="&#xE893;" Style="{StaticResource Glyph}"/>
-                    </Button>
-                    <Button x:Name="StopButton" Style="{StaticResource IconButton}" Click="OnStop" ToolTip="Detener"
-                            AutomationProperties.Name="Detener" IsEnabled="False">
-                        <TextBlock Text="&#xE71A;" Style="{StaticResource Glyph}" FontSize="14"/>
-                    </Button>
-                </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button x:Name="MuteButton" Style="{StaticResource IconButton}" Click="OnMute" ToolTip="Silenciar (M)"
-                            AutomationProperties.Name="Silenciar">
-                        <TextBlock x:Name="VolumeIcon" Text="&#xE767;" Style="{StaticResource Glyph}" FontSize="15"/>
-                    </Button>
-                    <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="70" Width="56" Margin="1,0,8,0"
-                            SmallChange="5" LargeChange="10" ValueChanged="OnVolumeChanged" ToolTip="Volumen"
-                            AutomationProperties.Name="Volumen"/>
-                    <Button x:Name="SoundButton" Style="{StaticResource IconButton}" Click="OnSoundMenu"
-                            ToolTip="Sonido y ecualizador" AutomationProperties.Name="Sonido y ecualizador">
-                        <TextBlock Text="&#xE9E9;" Style="{StaticResource Glyph}" FontSize="15"/>
-                    </Button>
-                    <Button x:Name="SubtitleButton" Style="{StaticResource IconButton}" Click="OnToggleLiveCaptions"
-                            ToolTip="Activar CC en vivo (inglés)" AutomationProperties.Name="Activar CC en vivo (inglés)">
-                        <Border x:Name="CcBorder" BorderThickness="1" BorderBrush="{StaticResource MutedBrush}" CornerRadius="3" Padding="3,0">
-                            <TextBlock x:Name="CcLabel" Text="CC" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                <Grid Grid.Row="1" Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="350"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                        <TextBlock x:Name="NowPlaying" Text="Sin reproducción" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                   AutomationProperties.LiveSetting="Polite"/>
+                        <TextBlock x:Name="StatusText" Text="" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" VerticalAlignment="Center" CornerRadius="11" Padding="4,2"
+                            Background="{StaticResource WindowBrush}" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="PreviousButton" Style="{StaticResource IconButton}" Click="OnPrevious" ToolTip="Anterior"
+                                    AutomationProperties.Name="Anterior" IsEnabled="False">
+                                <TextBlock Text="&#xE892;" Style="{StaticResource Glyph}"/>
+                            </Button>
+                            <Button x:Name="PlayButton" Style="{StaticResource PrimaryButton}" Click="OnPlayPause" Width="56" Height="38"
+                                    Padding="0" Margin="6,0" ToolTip="Reproducir (Espacio)" AutomationProperties.Name="Reproducir">
+                                <TextBlock x:Name="PlayIcon" Text="&#xE768;" Style="{StaticResource Glyph}"/>
+                            </Button>
+                            <Button x:Name="NextButton" Style="{StaticResource IconButton}" Click="OnNext" ToolTip="Siguiente"
+                                    AutomationProperties.Name="Siguiente" IsEnabled="False">
+                                <TextBlock Text="&#xE893;" Style="{StaticResource Glyph}"/>
+                            </Button>
+                            <Button x:Name="StopButton" Style="{StaticResource IconButton}" Click="OnStop" ToolTip="Detener"
+                                    AutomationProperties.Name="Detener" IsEnabled="False">
+                                <TextBlock Text="&#xE71A;" Style="{StaticResource Glyph}" FontSize="14"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="MuteButton" Style="{StaticResource IconButton}" Click="OnMute" ToolTip="Silenciar (M)"
+                                AutomationProperties.Name="Silenciar">
+                            <TextBlock x:Name="VolumeIcon" Text="&#xE767;" Style="{StaticResource Glyph}" FontSize="15"/>
+                        </Button>
+                        <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="70" Width="56" Margin="1,0,8,0"
+                                SmallChange="5" LargeChange="10" ValueChanged="OnVolumeChanged" ToolTip="Volumen"
+                                AutomationProperties.Name="Volumen"/>
+                        <Button x:Name="SoundButton" Style="{StaticResource IconButton}" Click="OnSoundMenu"
+                                ToolTip="Sonido y ecualizador" AutomationProperties.Name="Sonido y ecualizador">
+                            <TextBlock Text="&#xE9E9;" Style="{StaticResource Glyph}" FontSize="15"/>
+                        </Button>
+                        <Border Background="{StaticResource WindowBrush}" BorderBrush="{StaticResource StrokeBrush}"
+                                BorderThickness="1" CornerRadius="8" Margin="3,0,5,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="SubtitleButton" Style="{StaticResource IconButton}" Click="OnToggleLiveCaptions"
+                                        ToolTip="Activar CC en vivo (inglés)" AutomationProperties.Name="Activar CC en vivo (inglés)">
+                                    <Border x:Name="CcBorder" BorderThickness="1" BorderBrush="{StaticResource MutedBrush}" CornerRadius="3" Padding="3,0">
+                                        <TextBlock x:Name="CcLabel" Text="CC" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                                    </Border>
+                                </Button>
+                                <Button x:Name="SubtitleOptions" Style="{StaticResource IconButton}" Click="OnSubtitleMenu"
+                                        MinWidth="28" Width="28" Padding="0"
+                                        ToolTip="Estilo, sincronización y pistas de subtítulos" AutomationProperties.Name="Opciones de subtítulos">
+                                    <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10"/>
+                                </Button>
+                            </StackPanel>
                         </Border>
-                    </Button>
-                    <Button x:Name="SubtitleOptions" Style="{StaticResource IconButton}" Click="OnSubtitleMenu"
-                            MinWidth="20" Width="20" Padding="0" Margin="-3,0,0,0"
-                            ToolTip="Opciones de subtítulos" AutomationProperties.Name="Opciones de subtítulos">
-                        <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10"/>
-                    </Button>
-                    <Button x:Name="PlaybackOptions" Style="{StaticResource IconButton}" Click="OnPlaybackMenu"
-                            ToolTip="Opciones de reproducción" AutomationProperties.Name="Opciones de reproducción">
-                        <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" FontSize="15"/>
-                    </Button>
-                    <Button x:Name="FullscreenButton" Style="{StaticResource IconButton}" Click="OnFullscreen"
-                            ToolTip="Pantalla completa (F)" AutomationProperties.Name="Pantalla completa">
-                        <TextBlock x:Name="FullscreenIcon" Text="&#xE740;" Style="{StaticResource Glyph}" FontSize="15"/>
-                    </Button>
-                </StackPanel>
+                        <Button x:Name="FrameButton" Style="{StaticResource IconButton}" Click="OnFrameMenu"
+                                ToolTip="Encuadre del video" AutomationProperties.Name="Encuadre del video">
+                            <TextBlock Text="&#xE799;" Style="{StaticResource Glyph}" FontSize="16"/>
+                        </Button>
+                        <Button x:Name="PlaybackOptions" Style="{StaticResource IconButton}" Click="OnPlaybackMenu"
+                                ToolTip="Opciones de reproducción" AutomationProperties.Name="Opciones de reproducción">
+                            <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" FontSize="15"/>
+                        </Button>
+                        <Button x:Name="PanelButton" Style="{StaticResource PanelToggleButton}" Click="OnTogglePanel"/>
+                        <Button x:Name="FullscreenButton" Click="OnFullscreen" Margin="5,0,0,0"
+                                ToolTip="Pantalla completa (F)" AutomationProperties.Name="Pantalla completa">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                    <Setter Property="Width" Value="38"/>
+                                    <Setter Property="Background" Value="{StaticResource RaisedBrush}"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Visibility, ElementName=Header}" Value="Collapsed">
+                                            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <TextBlock x:Name="FullscreenIcon" Text="&#xE740;" Style="{StaticResource Glyph}" FontSize="15"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
             </Grid>
-        </Grid>
+        </Border>
     </Grid>
 </Window>

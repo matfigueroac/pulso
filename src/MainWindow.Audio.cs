@@ -9,15 +9,18 @@ namespace LumenPlayer;
 
 public partial class MainWindow
 {
+    // LibVLC scales the input by 0.25 per pass, about -12.04 dB.
+    private const float EqualizerPassCompensationDb = 12.0412f;
     private static readonly int[] BoostSteps = [0, 3, 6, 9];
+    // Match the perceived level of Plano approximately using pink noise as a reference.
     private static readonly AudioPreset[] AudioPresets =
     [
-        new("Plano", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-        new("Diálogos", [-4, -3, -2, 0, 2, 4, 4, 2, 0, -1]),
-        new("Cine", [4, 3, 2, 0, 1, 2, 2, 1, 0, 0]),
-        new("Música", [3, 2, 1, 0, -1, 0, 1, 2, 3, 2]),
-        new("Graves", [5, 5, 3, 1, 0, 0, 0, 0, 0, 0]),
-        new("Suave", [-3, -2, -1, 0, 1, 1, 0, -2, -3, -4])
+        new("Plano", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0f),
+        new("Diálogos", [-4, -3, -2, 0, 2, 4, 4, 2, 0, -1], -2f),
+        new("Cine", [4, 3, 2, 0, 1, 2, 2, 1, 0, 0], -1.4f),
+        new("Música", [3, 2, 1, 0, -1, 0, 1, 2, 3, 2], -1.8f),
+        new("Graves", [5, 5, 3, 1, 0, 0, 0, 0, 0, 0], -1f),
+        new("Suave", [-3, -2, -1, 0, 1, 1, 0, -2, -3, -4], 1.3f)
     ];
 
     private int _audioBoost;
@@ -60,13 +63,14 @@ public partial class MainWindow
         if (preset == 0 && boost == 0)
             return _player.UnsetEqualizer();
 
-        var gains = AudioPresets[preset].Gains;
+        var profile = AudioPresets[preset];
         using var equalizer = new Equalizer();
-        equalizer.SetPreamp(boost - gains.Max());
-        for (uint band = 0; band < gains.Length; band++)
-            equalizer.SetAmp(gains[band], band);
+        // Split gains across both passes so +9 dB stays within LibVLC's +20 dB preamp limit.
+        equalizer.SetPreamp(EqualizerPassCompensationDb + (boost + profile.LevelOffsetDb) / 2f);
+        for (uint band = 0; band < profile.Gains.Length; band++)
+            equalizer.SetAmp(profile.Gains[band] / 2f, band);
         return _player.SetEqualizer(equalizer);
     }
 
-    private sealed record AudioPreset(string Name, float[] Gains);
+    private sealed record AudioPreset(string Name, float[] Gains, float LevelOffsetDb);
 }

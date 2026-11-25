@@ -9,21 +9,46 @@
     <PlatformTarget>x64</PlatformTarget>
     <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
     <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
-    <Version>0.4.0</Version>
+    <Version>0.4.31</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <AssemblyTitle>Lumen Player</AssemblyTitle>
-    <Product>Lumen Player</Product>
+    <AssemblyTitle>Pulso</AssemblyTitle>
+    <Product>Pulso</Product>
     <ApplicationIcon>Assets\Lumen.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="LibVLCSharp.WPF" Version="3.10.2" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" GeneratePathProperty="true" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
-    <Resource Include="Assets\Lumen.ico;Assets\Fonts\*.otf" />
+    <Resource Include="Assets\Lumen.ico;Assets\Lumen.png;Assets\Fonts\*.otf" />
     <None Include="../README.md" CopyToPublishDirectory="PreserveNewest" TargetPath="README.md" />
+    <None Include="../LICENSE;../THIRD-PARTY-NOTICES.md" CopyToPublishDirectory="IfDifferent" TargetPath="%(Filename)%(Extension)" />
+    <None Include="../licenses/**/*.txt" CopyToPublishDirectory="IfDifferent" TargetPath="Licenses/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Update="Assets\Fonts\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" TargetPath="Licenses\Inter-OFL.txt" />
-    <Content Include="../.tools/speech/**/*" Link="Speech/%(RecursiveDir)%(Filename)%(Extension)"
+    <Content Include="../.tools/speech/**/*" Exclude="../.tools/speech/Whisper/ggml-base.en-q5_1.bin"
+             Link="Speech/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <Target Name="IncludePackageNotices" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <_TensorsReference Include="@(ReferenceCopyLocalPaths->WithMetadataValue('NuGetPackageId', 'System.Numerics.Tensors'))" />
+      <_NetCorePack Include="@(ResolvedRuntimePack->WithMetadataValue('NuGetPackageId', 'Microsoft.NETCore.App.Runtime.$(RuntimeIdentifier)'))"
+                    Condition="'$(SelfContained)' == 'true'" />
+      <_DesktopPack Include="@(ResolvedRuntimePack->WithMetadataValue('NuGetPackageId', 'Microsoft.WindowsDesktop.App.Runtime.$(RuntimeIdentifier)'))"
+                    Condition="'$(SelfContained)' == 'true'" />
+      <ResolvedFileToPublish Include="$(PkgMicrosoft_ML_OnnxRuntime)/LICENSE" RelativePath="Licenses/ONNXRuntime-LICENSE.txt" CopyToPublishDirectory="IfDifferent" />
+      <ResolvedFileToPublish Include="$(PkgMicrosoft_ML_OnnxRuntime)/ThirdPartyNotices.txt" RelativePath="Licenses/ONNXRuntime-ThirdPartyNotices.txt" CopyToPublishDirectory="IfDifferent" />
+      <ResolvedFileToPublish Include="@(_TensorsReference->'$(NuGetPackageRoot)system.numerics.tensors/%(NuGetPackageVersion)/LICENSE.TXT')"
+                             RelativePath="Licenses/System.Numerics.Tensors-LICENSE.txt" CopyToPublishDirectory="IfDifferent" />
+      <ResolvedFileToPublish Include="@(_TensorsReference->'$(NuGetPackageRoot)system.numerics.tensors/%(NuGetPackageVersion)/THIRD-PARTY-NOTICES.TXT')"
+                             RelativePath="Licenses/System.Numerics.Tensors-ThirdPartyNotices.txt" CopyToPublishDirectory="IfDifferent" />
+      <ResolvedFileToPublish Include="@(_NetCorePack->'%(PackageDirectory)/LICENSE.TXT')"
+                             RelativePath="Licenses/dotnet/Runtime-LICENSE.txt" CopyToPublishDirectory="IfDifferent" />
+      <ResolvedFileToPublish Include="@(_NetCorePack->'%(PackageDirectory)/THIRD-PARTY-NOTICES.TXT')"
+                             RelativePath="Licenses/dotnet/Runtime-ThirdPartyNotices.txt" CopyToPublishDirectory="IfDifferent" />
+      <ResolvedFileToPublish Include="@(_DesktopPack->'%(PackageDirectory)/LICENSE')"
+                             RelativePath="Licenses/dotnet/WindowsDesktop-LICENSE.txt" CopyToPublishDirectory="IfDifferent" />
+    </ItemGroup>
+  </Target>
 </Project>

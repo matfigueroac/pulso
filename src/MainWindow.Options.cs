@@ -35,6 +35,7 @@ public partial class MainWindow
     ];
 
     private float _rate = 1;
+    private const long SubtitleDelayStep = 100;
     private long _subtitleDelayMs;
     private bool _applyingPreset;
     private bool _previewOriginal;
@@ -45,20 +46,40 @@ public partial class MainWindow
     private long _effectStarted;
     private bool _capturing;
     private string? _aspectRatio;
+    private enum VideoFraming { FitWidth, Original, Fill }
+    private VideoFraming _videoFraming;
     private string? _deinterlace;
 
     private void OnOpenMenu(object sender, RoutedEventArgs e) => ShowMenu((Button)sender,
-        PlacementMode.Bottom,
+        PlacementMode.Bottom, alignLeft: true,
         Command("Abrir archivos…", () => OpenFiles(play: true), "Ctrl+O"),
         Command("Agregar a la cola…", () => OpenFiles(play: false), "Ctrl+Mayús+O"),
+        Command("Detalles del archivo…", ShowMediaDetails, enabled: _current is not null),
         MenuSeparator(),
+        Command("Ajustes de subtítulos…", ShowSubtitleSettings),
+        Command("Ajustes de imagen", ShowImagePanel, "Ctrl+E"),
         Command("Ver atajos de teclado", ShowShortcuts));
 
-    private void ShowShortcuts() => MessageBox.Show(this,
-        "Abrir archivos · Ctrl+O\nAgregar a la cola · Ctrl+Mayús+O\nReproducir o pausar · Espacio\n"
-        + "Saltar 5 segundos · ← y →\nSilenciar · M\nPantalla completa · F o Alt+Enter\nSalir de pantalla completa · Esc\n"
-        + "Cargar subtítulos · Ctrl+T\nMostrar u ocultar panel · Ctrl+L\nAjustar imagen · Ctrl+E\nGuardar fotograma · Ctrl+S",
-        "Atajos de Lumen Player", MessageBoxButton.OK);
+    private void ShowMediaDetails()
+    {
+        if (_current is not { } entry)
+            return;
+
+        var duration = _player is { Length: > 0 } player ? FormatTime(player.Length) : "—";
+        var image = OriginalAspectDescription().TrimStart(' ', '·');
+        ShowInfoPanel("Detalles del archivo", new MediaDetailsPanel(entry.Title, entry.Location, entry.Format, duration, image));
+    }
+
+    private void ShowShortcuts() => ShowInfoPanel("Atajos de teclado", new TextBlock
+    {
+        Margin = new Thickness(4, 2, 4, 8),
+        LineHeight = 26,
+        TextWrapping = TextWrapping.Wrap,
+        Text = "Abrir archivos · Ctrl+O\nAgregar a la cola · Ctrl+Mayús+O\nReproducir o pausar · Espacio\n"
+            + "Saltar 5 segundos · ← y →\nSilenciar · M\nPantalla completa · F o Alt+Enter\nSalir o cerrar el panel · Esc\n"
+            + "Cargar subtítulos · Ctrl+T\nAdelantar o atrasar subtítulos · Ctrl+← o Ctrl+→\nRestablecer sincronización · Ctrl+0\n"
+            + "Mostrar u ocultar panel · Ctrl+L\nAjustar imagen · Ctrl+E\nGuardar fotograma · Ctrl+S"
+    });
 
     private void OnSubtitleMenu(object sender, RoutedEventArgs e) =>
         ShowMenu((Button)sender, PlacementMode.Top, BuildSubtitleItems());
@@ -69,6 +90,8 @@ public partial class MainWindow
         var menu = new List<Control>
         {
             CheckCommand("CC en vivo (inglés)", _liveCaptions, ToggleLiveCaptions),
+            Command("Ajustes de subtítulos…", ShowSubtitleSettings),
+            BuildSubtitleDelayMenu(),
             MenuSeparator(),
             Command("Cargar subtítulos…", OpenSubtitle, "Ctrl+T", enabled),
             MenuSeparator()
@@ -80,24 +103,56 @@ public partial class MainWindow
             menu.Add(MenuSeparator());
         }
 
-        var trackItems = BuildTracks(_player?.SpuDescription, _player?.Spu ?? -1, id =>
+        var trackItems = BuildTracks(_player?.SpuDescription, _liveCaptions ? -1 : CurrentSubtitleTrack, (id, name) =>
         {
             SetLiveCaptions(false, announce: false);
-            if (_player?.SetSpu(id) == true)
-                SetStatus(id < 0 ? "Subtítulos desactivados" : "Pista de subtítulos seleccionada");
+            if (SelectSubtitleTrack(id))
+            {
+                _pendingSubtitleMode = null;
+                if (_subtitleFiles.TryGetValue(id, out var path))
+                    _current?.SubtitleSync.Save(ExternalSubtitleKey, path);
+                ApplySubtitleSync();
+                SavePlaybackBookmark();
+                SetStatus(id < 0 ? "Subtítulos desactivados" : $"Subtítulos: {name}", activity: "SubtitleTrack");
+            }
+            else
+                SetStatus("No se pudo cambiar la pista de subtítulos.", error: true);
         }, "Sin pistas de subtítulos");
         menu.AddRange(trackItems);
 
-        if (_requestedPlayback && _player?.Spu >= 0)
-        {
-            menu.Add(MenuSeparator());
-            var delayMenu = new MenuItem { Header = $"Sincronización ({FormatDelay(_subtitleDelayMs)})" };
-            delayMenu.Items.Add(Command("Adelantar 100 ms", () => SetSubtitleDelay(_subtitleDelayMs - 100)));
-            delayMenu.Items.Add(Command("Atrasar 100 ms", () => SetSubtitleDelay(_subtitleDelayMs + 100)));
-            delayMenu.Items.Add(Command("Restablecer a 0 ms", () => SetSubtitleDelay(0)));
-            menu.Add(delayMenu);
-        }
         return [.. menu];
+    }
+
+    private bool CanAdjustSubtitleDelay => _requestedPlayback && (_liveCaptions || CurrentSubtitleTrack >= 0);
+
+    private long ActiveSubtitleDelay => _liveCaptions ? _liveCaptionDelayMs : _subtitleDelayMs;
+
+    private MenuItem BuildSubtitleDelayMenu()
+    {
+        ApplySubtitleSync();
+        var menu = new MenuItem { IsEnabled = CanAdjustSubtitleDelay };
+        var timing = new MenuItem { IsEnabled = false };
+        menu.Items.Add(timing);
+        menu.Items.Add(MenuSeparator());
+        AddAdjustment("Adelantar 100 ms", "Ctrl+←", () => ChangeSubtitleDelay(-SubtitleDelayStep));
+        AddAdjustment("Atrasar 100 ms", "Ctrl+→", () => ChangeSubtitleDelay(SubtitleDelayStep));
+        AddAdjustment("Restablecer a 0 ms", "Ctrl+0", () => SetSubtitleDelay(0));
+        RefreshLabel();
+        return menu;
+
+        void AddAdjustment(string label, string gesture, Action adjust)
+        {
+            var item = Command(label, () => { adjust(); RefreshLabel(); }, gesture);
+            item.StaysOpenOnClick = true;
+            menu.Items.Add(item);
+        }
+
+        void RefreshLabel()
+        {
+            var value = FormatDelay(ActiveSubtitleDelay);
+            menu.Header = $"Sincronización ({value})";
+            timing.Header = $"{(_liveCaptions ? "CC en vivo" : "Subtítulos")} · {value}";
+        }
     }
 
     private void OpenSubtitle()
@@ -130,42 +185,74 @@ public partial class MainWindow
 
         var attached = 0;
         var failed = 0;
-        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var path in paths.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (!File.Exists(path))
             {
                 failed++;
                 continue;
             }
+            _pendingSubtitleMode = null;
             SetLiveCaptions(false, announce: false);
-            if (_requestedPlayback && !_player.AddSlave(MediaSlaveType.Subtitle, new Uri(path).AbsoluteUri, true))
-            {
-                failed++;
-                continue;
-            }
             if (!_current.Subtitles.Contains(path, StringComparer.OrdinalIgnoreCase))
                 _current.Subtitles.Add(path);
+            if (_requestedPlayback)
+                _subtitleLoads.Enqueue((path, true));
+            else
+                _current.HasExplicitSubtitles = true;
             attached++;
         }
 
         if (failed > 0)
-            SetStatus(attached == 0 ? "No se pudieron cargar los subtítulos." : $"Subtítulos cargados: {attached}. Fallaron: {failed}.", error: true);
+            SetStatus(attached == 0 ? "No se encontraron los subtítulos." : $"Subtítulos en cola: {attached}. No encontrados: {failed}.", error: true);
         else if (!_requestedPlayback)
             SetStatus("Los subtítulos se cargarán al reproducir.");
         else
-            SetStatus(attached == 1 ? "Subtítulos cargados" : $"Archivos de subtítulos cargados: {attached}");
+            SetStatus("Cargando subtítulos…");
+    }
+
+    private void ChangeSubtitleDelay(long delta)
+    {
+        ApplySubtitleSync();
+        SetSubtitleDelay(ActiveSubtitleDelay + delta);
     }
 
     private void SetSubtitleDelay(long milliseconds)
     {
-        if (_player?.SetSpuDelay(milliseconds * 1000) == true)
+        if (!CanAdjustSubtitleDelay || _player is null || _current is null)
+            return;
+
+        bool saved;
+        if (_liveCaptions)
         {
-            _subtitleDelayMs = milliseconds;
-            SetStatus("Subtítulos: " + FormatDelay(milliseconds));
+            _liveCaptionDelayMs = Math.Clamp(milliseconds, -LiveCaptionTimeline.MaximumDelay, LiveCaptionTimeline.MaximumDelay);
+            if (_liveWindowStart is long start && Math.Max(0, _player.Time - _liveCaptionDelayMs) < start)
+                ResetLiveWindow();
+            RefreshLiveCaptions();
+            saved = _current.SubtitleSync.Save(LiveDelayKey, _liveCaptionDelayMs);
         }
+        else if (SelectedSubtitleKey() is { } key && (_displayedSrt is not null || _player.SetSpuDelay(milliseconds * 1000)))
+        {
+            _appliedSubtitleKey = key;
+            _subtitleDelayMs = milliseconds;
+            RefreshSrtCaption();
+            saved = _current.SubtitleSync.Save(key, milliseconds);
+        }
+        else
+        {
+            SetStatus("No se pudo ajustar la sincronización.", error: true);
+            return;
+        }
+        var status = $"{(_liveCaptions ? "CC en vivo" : "Subtítulos")} · {FormatDelay(ActiveSubtitleDelay)}";
+        SetStatus(saved ? status : status + " · No se pudo guardar el ajuste", error: !saved);
     }
 
-    private static string FormatDelay(long milliseconds) => $"{milliseconds:+0;-0;0} ms";
+    private static string FormatDelay(long milliseconds) => milliseconds switch
+    {
+        < 0 => $"{-milliseconds} ms antes",
+        > 0 => $"{milliseconds} ms después",
+        _ => "0 ms"
+    };
 
     private void OnPlaybackMenu(object sender, RoutedEventArgs e)
     {
@@ -174,16 +261,42 @@ public partial class MainWindow
         deinterlace.Items.Add(CheckCommand("Yadif", _deinterlace == "yadif", () => SetDeinterlace("yadif")));
         deinterlace.Items.Add(CheckCommand("Yadif (doble frecuencia)", _deinterlace == "yadif2x", () => SetDeinterlace("yadif2x")));
 
-        ShowMenu((Button)sender, PlacementMode.Top, BuildAudioMenu(), BuildSoundMenu(), BuildSpeedMenu(), BuildAspectMenu(), deinterlace, MenuSeparator(),
+        ShowMenu((Button)sender, PlacementMode.Top, BuildAudioMenu(), BuildSoundMenu(), BuildSpeedMenu(), BuildAspectMenu(), deinterlace,
+            CheckCommand("Aceleración por hardware (próximo archivo)", _preferHardwareDecoding, ToggleHardwareDecoding),
+            BuildFullscreenBarMenu(), MenuSeparator(),
             Command("Ajustes de imagen", ShowImagePanel, "Ctrl+E"),
             Command("Guardar fotograma como PNG…", SaveSnapshot, "Ctrl+S", _videoVisible));
     }
 
+    private void ToggleHardwareDecoding()
+    {
+        _preferHardwareDecoding = !_preferHardwareDecoding;
+        SetStatus(_preferHardwareDecoding
+            ? "Próximo archivo: aceleración por hardware, sin ajustes de color."
+            : "Próximo archivo: modo compatible con ajustes de color.");
+    }
+
+    private void UpdateVideoEffectAvailability(bool hardwareDecoding)
+    {
+        VideoEffectsSettings.IsEnabled = !hardwareDecoding;
+        HardwareDecodingHint.Visibility = hardwareDecoding ? Visibility.Visible : Visibility.Collapsed;
+        if (hardwareDecoding)
+            _effectTimer.Stop();
+    }
+
+    private MenuItem BuildFullscreenBarMenu() => Submenu("Barra en pantalla completa",
+    [
+        CheckCommand("Siempre visible", !_autoHideFullscreenBar, () => SetFullscreenBarAutoHide(false)),
+        CheckCommand("Ocultar automáticamente", _autoHideFullscreenBar, () => SetFullscreenBarAutoHide(true))
+    ]);
+
     private MenuItem BuildAudioMenu() => Submenu("Pistas de audio", BuildTracks(
-        _player?.AudioTrackDescription, _player?.AudioTrack ?? -1, id =>
+        _player?.AudioTrackDescription, _player?.AudioTrack ?? -1, (id, name) =>
         {
             if (_player?.SetAudioTrack(id) == true)
-                SetStatus(id < 0 ? "Audio desactivado" : "Pista de audio seleccionada");
+                SetStatus(id < 0 ? "Audio desactivado" : $"Audio: {name}", activity: "AudioTrack");
+            else
+                SetStatus("No se pudo cambiar la pista de audio.", error: true);
         }, "Sin pistas de audio"));
 
     private MenuItem BuildSpeedMenu() => Submenu("Velocidad", Rates.Select(rate => CheckCommand(
@@ -209,6 +322,7 @@ public partial class MainWindow
         }
         items.Add(Command(_fullscreen ? "Salir de pantalla completa" : "Pantalla completa",
             ToggleFullscreen, _fullscreen ? "Esc" : "F"));
+        items.Add(BuildFullscreenBarMenu());
 
         if (_current is not null)
         {
@@ -221,7 +335,9 @@ public partial class MainWindow
 
         items.Add(MenuSeparator());
         items.Add(BuildAspectMenu());
-        items.Add(Submenu("Estilos de imagen", BuildPresetItems()));
+        var imagePresets = Submenu("Estilos de imagen", BuildPresetItems());
+        imagePresets.IsEnabled = VideoEffectsSettings.IsEnabled;
+        items.Add(imagePresets);
         items.Add(Command("Ajustes de imagen", ShowImagePanel, "Ctrl+E"));
         if (_videoVisible)
             items.Add(Command("Guardar fotograma…", SaveSnapshot, "Ctrl+S"));
@@ -237,14 +353,16 @@ public partial class MainWindow
         return submenu;
     }
 
-    private static IReadOnlyList<MenuItem> BuildTracks(TrackDescription[]? descriptions, int selected, Action<int> change, string empty)
+    private static IReadOnlyList<MenuItem> BuildTracks(TrackDescription[]? descriptions, int selected, Action<int, string> change, string empty)
     {
         if (descriptions is null || !descriptions.Any(track => track.Id >= 0))
             return [Command(empty, () => { }, enabled: false)];
 
-        return descriptions.Select(track => CheckCommand(
-            track.Id < 0 ? "Desactivar" : track.Name ?? $"Pista {track.Id}",
-            selected == track.Id, () => change(track.Id))).ToArray();
+        return descriptions.Select(track =>
+        {
+            var name = track.Id < 0 ? "Desactivar" : string.IsNullOrWhiteSpace(track.Name) ? $"Pista {track.Id}" : track.Name;
+            return CheckCommand(name, selected == track.Id, () => change(track.Id, name));
+        }).ToArray();
     }
 
     private void SetRate(float rate)
@@ -320,7 +438,10 @@ public partial class MainWindow
     {
         if (!_ready || _applyingPreset)
             return;
-        PresetLabel.Text = "Personalizado";
+        var matching = Presets.FirstOrDefault(preset => preset.Brightness == Brightness.Value
+            && preset.Contrast == Contrast.Value && preset.Saturation == Saturation.Value
+            && preset.Gamma == Gamma.Value && preset.Hue == Hue.Value);
+        PresetLabel.Text = matching?.Name ?? "Personalizado";
         SetOriginalPreview(false, animate: false);
     }
 
@@ -332,7 +453,7 @@ public partial class MainWindow
         CompareEffectsButton.Content = active ? "Volver a los ajustes" : "Ver original";
         var target = SelectedEffects();
         _effectTimer.Stop();
-        if (animate && _videoVisible && SystemParameters.ClientAreaAnimation)
+        if (animate && _videoVisible && VideoEffectsSettings.IsEnabled && SystemParameters.ClientAreaAnimation)
         {
             _effectStart = _renderedEffects;
             _effectTarget = target;
@@ -368,18 +489,21 @@ public partial class MainWindow
     private void ApplyEffects(ImagePreset settings)
     {
         _renderedEffects = settings;
-        if (_player is null || !_videoVisible)
+        if (_player is null || !_videoVisible || !VideoEffectsSettings.IsEnabled)
             return;
         var modified = settings.Brightness != 1 || settings.Contrast != 1 || settings.Saturation != 1
             || settings.Gamma != 1 || settings.Hue != 0;
-        _player.SetAdjustInt(VideoAdjustOption.Enable, modified ? 1 : 0);
         if (!modified)
+        {
+            _player.SetAdjustInt(VideoAdjustOption.Enable, 0);
             return;
+        }
         _player.SetAdjustFloat(VideoAdjustOption.Brightness, (float)settings.Brightness);
         _player.SetAdjustFloat(VideoAdjustOption.Contrast, (float)settings.Contrast);
         _player.SetAdjustFloat(VideoAdjustOption.Saturation, (float)settings.Saturation);
         _player.SetAdjustFloat(VideoAdjustOption.Gamma, (float)settings.Gamma);
         _player.SetAdjustFloat(VideoAdjustOption.Hue, (float)settings.Hue);
+        _player.SetAdjustInt(VideoAdjustOption.Enable, 1);
     }
 
     private void ApplyVideoSettings()
@@ -387,6 +511,7 @@ public partial class MainWindow
         if (_player is null)
             return;
         _player.AspectRatio = _aspectRatio;
+        ApplyVideoCrop();
         _player.SetDeinterlace(_deinterlace);
         ApplyEffects(_effectTimer.IsEnabled ? _renderedEffects : SelectedEffects());
         UpdateAspectLabel();
@@ -395,27 +520,41 @@ public partial class MainWindow
     private void OnAspectMenu(object sender, RoutedEventArgs e) =>
         ShowMenu((Button)sender, PlacementMode.Bottom, BuildAspectItems());
 
-    private MenuItem BuildAspectMenu() => Submenu("Relación de aspecto", BuildAspectItems());
+    private void OnFrameMenu(object sender, RoutedEventArgs e) =>
+        ShowMenu((Button)sender, PlacementMode.Top, BuildAspectItems());
+
+    private MenuItem BuildAspectMenu() => Submenu("Encuadre del video", BuildAspectItems());
 
     private Control[] BuildAspectItems() =>
     [
-        CheckCommand("Original" + OriginalAspectDescription(), _aspectRatio is null, () => SetAspect(null)),
+        CheckCommand("Ajustar al ancho", _aspectRatio is null && _videoFraming == VideoFraming.FitWidth, () => SetAspect(null)),
+        CheckCommand("Mostrar imagen completa" + OriginalAspectDescription(), _aspectRatio is null && _videoFraming == VideoFraming.Original,
+            () => SetAspect(null, VideoFraming.Original)),
+        CheckCommand("Llenar área (recorta bordes)", _aspectRatio is null && _videoFraming == VideoFraming.Fill,
+            () => SetAspect(null, VideoFraming.Fill)),
         MenuSeparator(),
         ..AspectRatios.Select(ratio => CheckCommand(ratio.Label, _aspectRatio == ratio.Value, () => SetAspect(ratio.Value)))
     ];
 
-    private string OriginalAspectDescription()
+    private bool TryGetVideoAspect(out uint width, out uint height, out double displayRatio)
     {
-        uint width = 0, height = 0;
-        if (!_videoVisible || _player is null || !_player.Size(0, ref width, ref height) || height == 0)
-            return "";
-
+        width = height = 0;
+        displayRatio = 0;
+        if (!_videoVisible || _player is null || !_player.Size(0, ref width, ref height) || width == 0 || height == 0)
+            return false;
         var track = _media?.Tracks.FirstOrDefault(track => track.TrackType == TrackType.Video && track.Id == _player.VideoTrack)
             .Data.Video;
         var pixelRatio = track is { SarNum: > 0, SarDen: > 0 } video ? (double)video.SarNum / video.SarDen : 1d;
         if (track is { Orientation: >= VideoOrientation.LeftTop })
             pixelRatio = 1 / pixelRatio;
-        var displayRatio = width * pixelRatio / height;
+        displayRatio = width * pixelRatio / height;
+        return true;
+    }
+
+    private string OriginalAspectDescription()
+    {
+        if (!TryGetVideoAspect(out var width, out var height, out var displayRatio))
+            return "";
         var label = AspectRatios.FirstOrDefault(ratio =>
         {
             var parts = ratio.Value.Split(':');
@@ -425,17 +564,54 @@ public partial class MainWindow
         return $" · {label} ({width} × {height})";
     }
 
-    private void UpdateAspectLabel() => AspectButton.Content = _aspectRatio is null
-        ? "Original" + OriginalAspectDescription()
-        : AspectRatios.First(ratio => ratio.Value == _aspectRatio).Label;
+    private void UpdateAspectLabel()
+    {
+        AspectButton.Content = _aspectRatio is not null ? AspectRatios.First(ratio => ratio.Value == _aspectRatio).Label
+            : _videoFraming switch
+            {
+                VideoFraming.FitWidth => "Ajustar al ancho",
+                VideoFraming.Fill => "Llenar área",
+                _ => "Original" + OriginalAspectDescription()
+            };
+        FrameButton.ToolTip = "Encuadre del video · " + AspectButton.Content;
+    }
 
-    private void SetAspect(string? ratio)
+    private void SetAspect(string? ratio, VideoFraming framing = VideoFraming.FitWidth)
     {
         _aspectRatio = ratio;
+        if (ratio is null)
+            _videoFraming = framing;
         if (_videoVisible && _player is not null)
+        {
             _player.AspectRatio = ratio;
+            ApplyVideoCrop();
+        }
         UpdateAspectLabel();
-        SetStatus("Proporción · " + AspectButton.Content);
+        SetStatus("Encuadre · " + AspectButton.Content);
+    }
+
+    private void OnVideoSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_videoVisible)
+            ApplyVideoCrop();
+        UpdateCaptionPosition();
+    }
+
+    private void ApplyVideoCrop()
+    {
+        if (_player is null)
+            return;
+
+        string? crop = null;
+        if (_aspectRatio is null && Video.ActualWidth > 0 && Video.ActualHeight > 0)
+        {
+            var viewportRatio = Video.ActualWidth / Video.ActualHeight;
+            if (_videoFraming == VideoFraming.Fill || (_videoFraming == VideoFraming.FitWidth
+                && TryGetVideoAspect(out _, out _, out var sourceRatio) && sourceRatio >= 1 && viewportRatio > sourceRatio))
+                crop = FormattableString.Invariant($"{Math.Max(1, Math.Round(1000 * viewportRatio)):0}:1000");
+        }
+        if (_player.CropGeometry != crop)
+            _player.CropGeometry = crop;
     }
 
     private void SetDeinterlace(string? mode)
@@ -526,7 +702,10 @@ public partial class MainWindow
         return item;
     }
 
-    private void ShowMenu(Button anchor, PlacementMode placement, params Control[] items)
+    private void ShowMenu(Button anchor, PlacementMode placement, params Control[] items) =>
+        ShowMenu(anchor, placement, alignLeft: false, items);
+
+    private void ShowMenu(Button anchor, PlacementMode placement, bool alignLeft, params Control[] items)
     {
         var menu = new ContextMenu
         {
@@ -534,8 +713,8 @@ public partial class MainWindow
             PlacementTarget = anchor,
             CustomPopupPlacementCallback = (popup, target, _) =>
             [
-                new(new Point(target.Width - popup.Width, placement == PlacementMode.Top ? -popup.Height : target.Height), PopupPrimaryAxis.Horizontal),
-                new(new Point(target.Width - popup.Width, placement == PlacementMode.Top ? target.Height : -popup.Height), PopupPrimaryAxis.Horizontal)
+                new(new Point(alignLeft ? 0 : target.Width - popup.Width, placement == PlacementMode.Top ? -popup.Height : target.Height), PopupPrimaryAxis.Horizontal),
+                new(new Point(alignLeft ? 0 : target.Width - popup.Width, placement == PlacementMode.Top ? target.Height : -popup.Height), PopupPrimaryAxis.Horizontal)
             ]
         };
         OpenMenu(menu, items);

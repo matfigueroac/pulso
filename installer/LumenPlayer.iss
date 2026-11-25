@@ -1,6 +1,9 @@
-﻿#define AppName "Lumen Player"
+﻿#define AppName "Pulso"
 #define AppExe "LumenPlayer.exe"
-#define AppVersion GetStringFileInfo(SourcePath + "..\dist\LumenPlayer\" + AppExe, "ProductVersion")
+#ifndef PublishDir
+  #define PublishDir SourcePath + "..\dist\LumenPlayer"
+#endif
+#define AppVersion GetStringFileInfo(PublishDir + "\" + AppExe, "ProductVersion")
 
 [Setup]
 AppId=LumenPlayer.Windows
@@ -13,7 +16,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir=..\dist
-OutputBaseFilename=LumenPlayer-{#AppVersion}-Setup-x64
+OutputBaseFilename={#AppName}-{#AppVersion}-Setup-x64
 SetupIconFile=..\src\Assets\Lumen.ico
 UninstallDisplayIcon={app}\{#AppExe}
 Compression=lzma2
@@ -24,10 +27,14 @@ CloseApplications=no
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Files]
-Source: "..\dist\LumenPlayer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExe}"
+
+[InstallDelete]
+Type: files; Name: "{autoprograms}\Lumen Player.lnk"
+Type: files; Name: "{autoprograms}\Fotograma.lnk"
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Abrir {#AppName}"; Flags: nowait postinstall skipifsilent

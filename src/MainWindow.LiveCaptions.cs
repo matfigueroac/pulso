@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -7,19 +6,23 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Media;
+using System.Windows.Threading;
 using LibVLCSharp.Shared;
 
 namespace LumenPlayer;
 
 public partial class MainWindow
 {
-    private readonly List<SpeechRecognition.CaptionCue> _liveCues = [];
+    private readonly LiveCaptionTimeline _liveTimeline = new();
+    private readonly DispatcherTimer _captionClock = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(60) };
     private bool _liveCaptions;
     private CancellationTokenSource? _liveWork;
-    private string? _liveAudioStream;
+    private SpeechRecognition.AudioStream? _liveAudioStream;
     private int? _liveAudioTrack;
     private int? _previousSubtitleTrack;
     private long? _liveNextWindow;
+    private long? _liveWindowStart;
+    private long _liveCaptionDelayMs;
     private long _lastLivePosition = -1;
     private long _lastLiveTick;
     private bool _liveHasResults;
@@ -28,26 +31,38 @@ public partial class MainWindow
 
     private void ToggleLiveCaptions()
     {
-        if (!_liveCaptions && !SpeechRecognition.IsAvailable)
+        if (!_liveCaptions && !SpeechRecognition.SupportsLiveCaptions)
         {
             SetStatus("Motor de subtítulos no disponible.", error: true);
             return;
         }
+        _pendingSubtitleMode = null;
         SetLiveCaptions(!_liveCaptions);
+        SavePlaybackBookmark();
     }
 
-    private void SetLiveCaptions(bool enabled, bool announce = true)
+    private void SetLiveCaptions(bool enabled, bool announce = true, bool cancelGeneration = true)
     {
         if (_liveCaptions == enabled)
             return;
+        if (enabled && _requestedPlayback && CurrentSubtitleTrack is >= 0 and var previous)
+        {
+            _previousSubtitleTrack = previous;
+            SelectSubtitleTrack(-1);
+        }
         _liveCaptions = enabled;
         ResetLiveWindow();
         if (enabled)
-            _subtitleGeneration?.Cancel();
+        {
+            if (cancelGeneration)
+                _subtitleGeneration?.Cancel();
+            _captionClock.Start();
+        }
         else
         {
+            _captionClock.Stop();
             if (_requestedPlayback && _previousSubtitleTrack is >= 0 and var track)
-                _player?.SetSpu(track);
+                SelectSubtitleTrack(track);
             _previousSubtitleTrack = null;
         }
 
@@ -57,15 +72,16 @@ public partial class MainWindow
         CcLabel.Foreground = (Brush)FindResource(enabled ? "AccentBrush" : "TextBrush");
         CcBorder.BorderBrush = (Brush)FindResource(enabled ? "AccentBrush" : "MutedBrush");
         if (announce)
-            SetStatus(enabled ? "CC en vivo activado · inglés" : "CC en vivo desactivado");
+            SetStatus(enabled ? "CC en vivo · reconociendo diálogo…" : "CC en vivo desactivado", activity: "SubtitleTrack");
     }
 
     private void ResetLiveWindow()
     {
         _liveWork?.Cancel();
         _liveWork = null;
-        _liveCues.Clear();
+        _liveTimeline.Clear();
         _liveNextWindow = null;
+        _liveWindowStart = null;
         _liveAudioStream = null;
         _liveAudioTrack = null;
         _lastLivePosition = -1;
@@ -97,55 +113,55 @@ public partial class MainWindow
 
         if (_player.Spu >= 0)
         {
+            if (_startupSubtitle is not null || _loadingSubtitle is not null)
+                RefreshSubtitleSync();
             _previousSubtitleTrack ??= _player.Spu;
-            _player.SetSpu(-1);
+            SelectSubtitleTrack(-1);
         }
 
-        _liveCues.RemoveAll(cue => cue.End < position - 2000);
-        var caption = _liveCues.FirstOrDefault(cue => cue.Start <= position && cue.End > position)?.Text;
-        if (caption is null && !_liveHasResults)
-            caption = "Reconociendo diálogo…";
-        LiveCaptionText.Text = caption ?? "";
-        LiveCaptionBox.Visibility = caption is null ? Visibility.Collapsed : Visibility.Visible;
+        var caption = _liveTimeline.TextAt(position, _liveCaptionDelayMs);
+        ShowSubtitleCaption(caption);
 
         var duration = _player.Length;
-        if (_liveWork is not null || _subtitleGeneration is not null
-            || (_liveHasResults && !_player.IsPlaying) || duration <= position)
+        var captionPosition = Math.Max(0, position - _liveCaptionDelayMs);
+        if (_liveWork is not null || _subtitleGeneration is not null || duration <= position
+            || (_liveHasResults && !_player.IsPlaying && _liveNextWindow > captionPosition))
             return;
-        var next = _liveNextWindow ?? Math.Max(0, position - 300);
-        if (next >= duration || next - position >= Math.Max(10000, 11000 * _rate))
+        var next = _liveNextWindow ?? Math.Max(0, captionPosition - 300);
+        if (next >= duration || next - Math.Max(position, captionPosition) >= Math.Max(10000, 11000 * _rate))
             return;
-        if (position - next > 3500)
-            next = Math.Max(0, position - 300);
-        var audioTracks = _media?.Tracks.Where(info => info.TrackType == TrackType.Audio).ToArray() ?? [];
-        var ordinal = Array.FindIndex(audioTracks, info => info.Id == track);
-        ReadLiveWindow(_current.Location, ordinal, next, duration);
+        if (captionPosition - next > 3500)
+        {
+            next = Math.Max(0, captionPosition - 300);
+            _liveWindowStart = next;
+        }
+        _liveWindowStart ??= next;
+        ReadLiveWindow(_current.Location, GetAudioOrdinal(track), next, duration,
+            _liveHasResults ? null : captionPosition);
     }
 
-    private async void ReadLiveWindow(string input, int ordinal, long next, long duration)
+    private int GetAudioOrdinal(int track) => track < 0 ? -1
+        : Array.FindIndex(_media?.Tracks.Where(info => info.TrackType == TrackType.Audio).ToArray() ?? [],
+            info => info.Id == track);
+
+    private async void ReadLiveWindow(string input, int ordinal, long next, long duration, long? resumeAt)
     {
         using var work = new CancellationTokenSource();
         _liveWork = work;
         var advance = Math.Min(duration, next + (_liveHasResults ? 8500 : 5500));
         try
         {
-            var index = _liveAudioStream ?? await SpeechRecognition.FindAudioStream(input, ordinal, work.Token);
-            var cues = await SpeechRecognition.RecognizeWindow(input, index, Math.Max(0, next - 1100),
-                Math.Min(duration, advance + 1100), work.Token);
+            var audio = _liveAudioStream ?? await SpeechRecognition.FindAudioStream(input, ordinal, work.Token);
+            var cues = await SpeechRecognition.RecognizeWindow(input, audio, Math.Max(0, next - 1700),
+                Math.Min(duration, advance + 1800), resumeAt, work.Token);
             if (!ReferenceEquals(_liveWork, work))
                 return;
-            _liveAudioStream = index;
+            _liveAudioStream = audio;
             _liveNextWindow = advance;
+            _liveTimeline.AppendWindow(cues, next, advance, resumeAt);
+            if (!_liveHasResults && _liveCaptionDelayMs == 0)
+                SetStatus("CC en vivo activado · inglés");
             _liveHasResults = true;
-            var lastEnd = _liveCues.Count == 0 ? next : Math.Max(next, _liveCues[^1].End);
-            foreach (var cue in cues)
-            {
-                var start = Math.Max(lastEnd, cue.Start);
-                if (start >= advance || cue.End - start < 200)
-                    continue;
-                _liveCues.Add(cue with { Start = start });
-                lastEnd = cue.End;
-            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException

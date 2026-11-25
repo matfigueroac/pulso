@@ -1,0 +1,19 @@
+<UserControl x:Class="LumenPlayer.MediaDetailsPanel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Foreground="{StaticResource TextBrush}" FontFamily="{StaticResource UiFont}" FontSize="13">
+    <StackPanel Margin="4,6">
+        <TextBlock x:Name="FileTitle" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        <Border Margin="0,17,0,14" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource StrokeBrush}"
+                BorderThickness="1" CornerRadius="10" Padding="13">
+            <StackPanel>
+                <TextBlock x:Name="Format" TextWrapping="Wrap"/>
+                <TextBlock x:Name="Image" TextWrapping="Wrap" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Border>
+        <TextBlock Text="Ubicación" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+        <TextBox x:Name="Location" IsReadOnly="True" TextWrapping="Wrap" Background="Transparent"
+                 Foreground="{StaticResource TextBrush}" BorderThickness="0" Padding="0"
+                 AutomationProperties.Name="Ubicación del archivo"/>
+    </StackPanel>
+</UserControl>

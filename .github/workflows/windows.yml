@@ -1,0 +1,46 @@
+name: Verificación en Windows
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Generar portable para Windows x64
+        run: dotnet publish src/LumenPlayer.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true -o dist/LumenPlayer
+      - name: Probar cola y reanudación
+        run: dotnet run --project tests/Playback -c Release
+
+  installer:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Preparar la transcripción sin conexión
+        run: ./installer/Prepare-Speech.ps1
+      - name: Generar y probar el instalador completo
+        run: |
+          dotnet publish src/LumenPlayer.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true -o dist/LumenPlayer
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación de Pulso.' }
+          $inno = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          & $inno installer/LumenPlayer.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la compilación del instalador.' }
+          ./tests/InstallerSmoke.ps1 -Setup (Get-Item dist/Pulso-*-Setup-x64.exe)
