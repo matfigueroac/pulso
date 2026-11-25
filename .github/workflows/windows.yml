@@ -41,6 +41,13 @@ jobs:
           dotnet publish src/LumenPlayer.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true -o dist/LumenPlayer
           if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación de Pulso.' }
           $inno = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
-          & $inno installer/LumenPlayer.iss
+          & $inno installer/WindowsDistribution.iss
           if ($LASTEXITCODE -ne 0) { throw 'Falló la compilación del instalador.' }
           ./tests/InstallerSmoke.ps1 -Setup (Get-Item dist/Pulso-*-Setup-x64.exe)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pulso-windows-x64
+          path: dist/Pulso-*-Setup-x64.exe
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error

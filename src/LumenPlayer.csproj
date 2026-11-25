@@ -9,7 +9,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
     <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
-    <Version>0.4.31</Version>
+    <Version>0.4.32</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <AssemblyTitle>Pulso</AssemblyTitle>
     <Product>Pulso</Product>

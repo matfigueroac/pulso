@@ -38,6 +38,22 @@ foreach ($file in $expectedFiles) {
     }
 }
 
+# Compare every installed media file with the original locked publish, including plug-ins.
+$published = (Resolve-Path (Join-Path $PSScriptRoot '../dist/LumenPlayer')).Path
+foreach ($folder in 'libvlc/win-x64', 'Speech/FFmpeg') {
+    $referenceFiles = @(Get-ChildItem (Join-Path $published $folder) -Recurse -File)
+    $installedFiles = @(Get-ChildItem (Join-Path $install $folder) -Recurse -File)
+    if ($installedFiles.Count -ne $referenceFiles.Count -or !$referenceFiles.Count) {
+        throw "Inventario inesperado en $folder."
+    }
+    foreach ($file in $referenceFiles) {
+        $relative = [IO.Path]::GetRelativePath($published, $file.FullName)
+        if ((Get-FileHash $file.FullName).Hash -ne (Get-FileHash (Join-Path $install $relative)).Hash) {
+            throw "El archivo instalado difiere del portable: $relative"
+        }
+    }
+}
+
 & (Join-Path $install 'Speech/FFmpeg/ffprobe.exe') -version
 if ($LASTEXITCODE -ne 0) { throw 'ffprobe no arranca.' }
 & (Join-Path $install 'Speech/Whisper/whisper-cli.exe') --help
