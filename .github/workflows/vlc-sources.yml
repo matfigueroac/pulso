@@ -1,0 +1,39 @@
+name: Inventario de fuentes de VLC para Windows
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  contrib:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          repository: videolan/vlc
+          ref: 6de05adcbaf2e8b85fe86aad4169393098628119
+          persist-credentials: false
+      - name: Resolver las dependencias de VLC 3.0.24 con su compilador de publicación
+        shell: bash
+        run: |
+          set -euo pipefail
+          image=registry.videolan.org/vlc-debian-win64-3.0@sha256:b8e61c83d248cfb8fc3432d347f07f24de5a2ea6b0060cfe3053243e3674e6e7
+          docker run --rm -v "$PWD:/vlc" -w /vlc --entrypoint /bin/bash "$image" -euc '
+            script=extras/package/win32/build.sh
+            test "$(grep -c "^make list$" "$script")" = 1
+            sed -n "1,/^make list$/p" "$script" > extras/package/win32/source-list.sh
+            # The package inventory only needs the cross compiler, pkg-config and make.
+            sed -i "s/^make -j\$JOBS$/:/" extras/package/win32/source-list.sh
+            sh extras/package/win32/source-list.sh -r -l -i u -a x86_64 -b https://win.crashes.videolan.org
+            mkdir -p /vlc/inventory
+            cd contrib/contrib-win64
+            export USE_FFMPEG=1
+            make list > /vlc/inventory/packages.txt
+            make -n fetch > /vlc/inventory/fetch.txt
+            cp config.mak /vlc/inventory/
+            dpkg-query -W > /vlc/inventory/debian-packages.txt
+          '
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vlc-win64-source-inventory
+          path: inventory/
+          if-no-files-found: error
