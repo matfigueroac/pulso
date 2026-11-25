@@ -4,7 +4,9 @@ Reproductor de video y audio para Windows x64. Retoma cada película donde la de
 
 ![Pulso reproduce Espirales.mp4 con un subtítulo SRT y los controles de reproducción a la vista](docs/capturas/reproduccion.jpg)
 
-La **beta 0.4.31** está disponible como código fuente. [Descargar el código](https://github.com/matfigueroac/pulso/releases/tag/v0.4.31) · [Compilar en Windows](docs/compilacion.md)
+**[Descargar Pulso 0.4.32 beta para Windows x64](https://github.com/matfigueroac/pulso/releases/download/v0.4.32/Pulso-0.4.32-Setup-x64.exe)** · [Archivos, fuentes y SHA-256](https://github.com/matfigueroac/pulso/releases/tag/v0.4.32)
+
+La instalación descarga los motores de video y audio. Después puedes reproducir y generar subtítulos sin internet. [Instalar sin conexión o compilar en Windows](docs/compilacion.md)
 
 ## Durante la reproducción
 
