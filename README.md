@@ -4,6 +4,8 @@ Reproductor de video y audio para Windows x64 con cola de reproducción, reanuda
 
 Consulta los [resultados de la auditoría](docs/auditoria/README.md) para ver capturas y mediciones de reproducción 4K.
 
+La [beta 0.4.31](https://github.com/matfigueroac/pulso/releases/tag/v0.4.31) está disponible como código fuente. Sigue las instrucciones de [compilación](#compilar) para generar el portable o el instalador en Windows.
+
 ## Abrir Pulso
 
 En el paquete portable, ejecuta `LumenPlayer.exe` desde la carpeta extraída y conserva juntos los archivos. El paquete incluye el motor multimedia y el runtime de .NET. Si compilas desde el código fuente, el comando de publicación deja el portable en `dist/LumenPlayer`.
@@ -61,10 +63,10 @@ Si utilizas el SDK local del proyecto, sustituye dotnet por .\.tools\dotnet\dotn
 
 En `dist`, ejecuta el instalador `Pulso-<versión>-Setup-x64.exe` de la versión que quieras instalar. También permite actualizar Lumen Player en tu cuenta. El ejecutable permanece en `%LOCALAPPDATA%\Programs\Lumen Player\LumenPlayer.exe`.
 
-Para volver a generar el instalador, publica primero la app y luego compila la receta con Inno Setup 6.7.4. Desde la raíz del proyecto, el compilador local se ejecuta así.
+Para generar el instalador, publica primero la app y luego compila la receta con Inno Setup 6.7.4. Para el instalador con transcripción, ejecuta `installer/Prepare-Speech.ps1` antes de publicar la app. Con Inno Setup instalado en su ubicación predeterminada, ejecuta desde la raíz del proyecto.
 
 ```powershell
-.\.tools\inno\ISCC.exe installer\LumenPlayer.iss
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" .\installer\LumenPlayer.iss
 ```
 
 ## Dependencias
