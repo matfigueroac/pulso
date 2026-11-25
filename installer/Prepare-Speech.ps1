@@ -19,8 +19,8 @@ $whisper = Get-VerifiedFile `
     'https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.6/whisper-bin-x64.zip' 'whisper.zip' `
     'b07ea0b1b4115a38e1a7b07debf581f0b77d999925f8acb8f39d322b0ba0a822'
 $ffmpeg = Get-VerifiedFile `
-    'https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-14-12-37/ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-shared-8.1.zip' 'ffmpeg.zip' `
-    '97927ac5391d5e3a11dc3bce679d54f7fde04cf54380a09970c32eea49ba20a2'
+    'https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59/ffmpeg-n8.1.3-27-g8dca1586f4-win64-lgpl-shared-8.1.zip' 'ffmpeg-n8.1.3-27-g8dca1586f4-win64-lgpl-shared-8.1.zip' `
+    '5cef7bc48e513f3cee7c881e8b2999d835541edb1846c3e89443a67f8f8556ab'
 $model = Get-VerifiedFile `
     'https://huggingface.co/ggerganov/whisper.cpp/resolve/f281eb4/ggml-small.en-q5_1.bin?download=true' 'ggml-small.en-q5_1.bin' `
     'bfdff4894dcb76bbf647d56263ea2a96645423f1669176f4844a1bf8e478ad30'
@@ -53,7 +53,7 @@ Invoke-WebRequest 'https://raw.githubusercontent.com/ggml-org/whisper.cpp/v1.8.6
 Invoke-WebRequest 'https://raw.githubusercontent.com/openai/whisper/v20250625/LICENSE' -OutFile "$target/Whisper/LICENSE-model.txt"
 Invoke-WebRequest 'https://raw.githubusercontent.com/snakers4/silero-vad/v5.1.2/LICENSE' -OutFile "$target/Whisper/LICENSE-Silero.txt"
 
-$ffmpegDir = Join-Path $downloads 'ffmpeg/ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-shared-8.1'
+$ffmpegDir = Join-Path $downloads 'ffmpeg/ffmpeg-n8.1.3-27-g8dca1586f4-win64-lgpl-shared-8.1'
 Get-ChildItem -LiteralPath "$ffmpegDir/bin" -File | Where-Object {
     $_.Extension -eq '.dll' -or $_.Name -in 'ffmpeg.exe', 'ffprobe.exe'
 } | Copy-Item -Destination "$target/FFmpeg"

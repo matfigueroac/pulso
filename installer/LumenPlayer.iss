@@ -1,4 +1,4 @@
-﻿#define AppName "Pulso"
+#define AppName "Pulso"
 #define AppExe "LumenPlayer.exe"
 #ifndef PublishDir
   #define PublishDir SourcePath + "..\dist\LumenPlayer"
@@ -15,7 +15,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #ifdef PublicSetup
-MinVersion=10.0.17763
+MinVersion=10.0.19045
 #else
 MinVersion=10.0
 #endif
@@ -39,7 +39,7 @@ Source: "{tmp}\build\x64\libvlccore.*"; DestDir: "{app}\libvlc\win-x64"; Flags: 
 {#VlcTree("hrtfs")}
 {#VlcTree("lua")}
 {#VlcTree("plugins")}
-#define FFmpegRoot "ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-shared-8.1"
+#define FFmpegRoot "ffmpeg-n8.1.3-27-g8dca1586f4-win64-lgpl-shared-8.1"
 Source: "{tmp}\{#FFmpegRoot}\bin\*.dll"; DestDir: "{app}\Speech\FFmpeg"; Flags: external ignoreversion
 Source: "{tmp}\{#FFmpegRoot}\bin\ffmpeg.exe"; DestDir: "{app}\Speech\FFmpeg"; Flags: external ignoreversion
 Source: "{tmp}\{#FFmpegRoot}\bin\ffprobe.exe"; DestDir: "{app}\Speech\FFmpeg"; Flags: external ignoreversion

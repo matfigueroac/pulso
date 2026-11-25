@@ -56,6 +56,11 @@ foreach ($folder in 'libvlc/win-x64', 'Speech/FFmpeg') {
 
 & (Join-Path $install 'Speech/FFmpeg/ffprobe.exe') -version
 if ($LASTEXITCODE -ne 0) { throw 'ffprobe no arranca.' }
+$audio = Join-Path $env:RUNNER_TEMP 'pulso-smoke.wav'
+& (Join-Path $install 'Speech/FFmpeg/ffmpeg.exe') -v error -f lavfi -i 'sine=duration=1' -ar 16000 -ac 1 -c:a pcm_s16le $audio
+if ($LASTEXITCODE -ne 0) { throw 'FFmpeg no generó audio para transcripción.' }
+$sampleRate = & (Join-Path $install 'Speech/FFmpeg/ffprobe.exe') -v error -select_streams a:0 -show_entries stream=sample_rate -of csv=p=0 $audio
+if ($LASTEXITCODE -ne 0 -or $sampleRate -ne '16000') { throw 'ffprobe no confirmó los 16 kHz del audio generado.' }
 & (Join-Path $install 'Speech/Whisper/whisper-cli.exe') --help
 if ($LASTEXITCODE -ne 0) { throw 'whisper-cli no arranca.' }
 
@@ -84,9 +89,9 @@ Write-Host 'Instalación y desinstalación completas verificadas.'
 # A second machine can use the same two upstream downloads without network access.
 $vlcName = 'videolan.libvlc.windows.3.0.24.nupkg'
 $vlcSidecar = Join-Path $Setup.DirectoryName $vlcName
-$ffmpegSidecar = Join-Path $Setup.DirectoryName 'ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-shared-8.1.zip'
+$ffmpegSidecar = Join-Path $Setup.DirectoryName 'ffmpeg-n8.1.3-27-g8dca1586f4-win64-lgpl-shared-8.1.zip'
 $nugetRoot = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $env:USERPROFILE '.nuget/packages' }
-Copy-Item (Join-Path $PSScriptRoot '../work/speech-deps/ffmpeg.zip') $ffmpegSidecar
+Copy-Item (Join-Path $PSScriptRoot '../work/speech-deps/ffmpeg-n8.1.3-27-g8dca1586f4-win64-lgpl-shared-8.1.zip') $ffmpegSidecar
 Set-Content -LiteralPath $vlcSidecar -Value 'paquete de prueba incompleto'
 $invalid = Start-Process $Setup.FullName -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
 if (!$invalid.ExitCode -or (Test-Path (Join-Path $install 'LumenPlayer.exe'))) {

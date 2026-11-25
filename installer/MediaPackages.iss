@@ -50,8 +50,8 @@ begin
     try
       QueuePackage('https://api.nuget.org/v3-flatcontainer/videolan.libvlc.windows/3.0.24/',
         VlcPackage, '3da3f37ee2b2b10e5c788d830a3b513658c36521ea1b0f966ed86eb69f41ef3c');
-      QueuePackage('https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-14-12-37/',
-        FFmpegPackage, '97927ac5391d5e3a11dc3bce679d54f7fde04cf54380a09970c32eea49ba20a2');
+      QueuePackage('https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59/',
+        FFmpegPackage, '5cef7bc48e513f3cee7c881e8b2999d835541edb1846c3e89443a67f8f8556ab');
       if NeedsDownload then
         MediaDownloads.Download;
       MediaDownloads.SetText('Extrayendo los componentes verificados…', '');

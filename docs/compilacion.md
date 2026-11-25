@@ -22,12 +22,14 @@ Para generar el instalador, publica primero la app y luego compila la receta con
 & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" .\installer\WindowsDistribution.iss
 ```
 
-El instalador público incorpora los modelos de voz. Obtiene los motores de reproducción y transcripción de NuGet y de FFmpeg-Builds durante la instalación (unos 215 MiB en total) y valida ambos con SHA-256. Después puedes reproducir y transcribir sin conexión.
+El instalador público requiere Windows 10 22H2 o posterior en x64 e incorpora los modelos de voz. Obtiene los motores de reproducción y transcripción de NuGet y de FFmpeg-Builds durante la instalación (unos 215 MiB en total) y valida ambos con SHA-256. Después puedes reproducir y transcribir sin conexión.
 
 Para instalar en otro equipo sin internet, guarda estos dos archivos junto al instalador, con sus nombres originales. El instalador los verifica antes de modificar la instalación.
 
 - [VideoLAN.LibVLC.Windows 3.0.24 de NuGet](https://api.nuget.org/v3-flatcontainer/videolan.libvlc.windows/3.0.24/videolan.libvlc.windows.3.0.24.nupkg)
-- [FFmpeg 8.1.3 para Windows x64 de FFmpeg-Builds](https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-14-12-37/ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-shared-8.1.zip)
+- [FFmpeg 8.1.3 para Windows x64 de FFmpeg-Builds](https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59/ffmpeg-n8.1.3-27-g8dca1586f4-win64-lgpl-shared-8.1.zip)
+
+El proveedor conserva esta compilación mensual de octubre de 2026 durante dos años. Guarda los dos paquetes si necesitas reinstalar esta beta sin depender de su disponibilidad. [Política de conservación de FFmpeg-Builds](https://github.com/FFmpeg-Builds/FFmpeg-Builds#release-retention-policy)
 
 ## Pruebas de cola y reanudación
 
